@@ -1,1 +1,1 @@
-## Adaptive Implicit Schemes for Hyperbolic Equations
+# Adaptive Implicit Schemes for Hyperbolic Equations
