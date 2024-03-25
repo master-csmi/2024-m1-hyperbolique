@@ -1,0 +1,83 @@
+\documentclass[10pt]{beamer}
+\usepackage{graphicx}
+\usepackage{adjustbox}
+\usepackage[backend=biber]{biblatex}
+\addbibresource{references.bib}
+
+\usetheme{Copenhagen}
+\setbeamertemplate{navigation symbols}{}
+
+\title[Adaptive Implicit Schemes for Hyperbolic Equations]{Adaptive Implicit Schemes for Hyperbolic Equations}
+\author[]{Antoine Regardin -- Supervisors: Emmanuel Franck, Andrea Thomann}
+
+\begin{document}
+
+\frame{\titlepage}
+
+\begin{frame}{Introduction}
+    We want to study Hyperbolic PDEs such as the linear Advection Equation:
+    \begin{align*}
+        \partial_t u + a\partial_x u = 0
+    \end{align*}
+    But with a function $u$ carrying a discontinuity (= a shock) in space! (and smooth everywhere else.)
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.5\textwidth]{u0-example.png}
+        %\caption{}
+    \end{figure}
+    Such continuity can be used to modelize a boundary between two materials.
+\end{frame}
+
+\begin{frame}
+\frametitle{Theta Schemes}
+Usually, representing a discontinuity in space is achievable without issues, but implementing a solver in time is another problem. %because in our case a shock in space is also a shock in time.
+\\ A fixed scheme that works well for a certain step may not for the next ones...
+\vspace{12pt}
+
+A Theta Scheme for this equation can be written like this:
+\begin{align*}
+    \frac{u_i^{n+1} - u_i^n}{\Delta t} + a\theta\partial_t u^{n+1} + a(1-\theta)\partial_x u^n = 0
+\end{align*}
+%We notice that this is a hybrid between Explicit and Implicit schemes. %When $\theta = \frac{1}{2}$, we obtain a Crank-Nicholson method.
+
+The idea is to use $\theta$ as a parameter of our model responsible of handling the shock in time, in order to have a better scheme.
+
+\end{frame}
+
+\begin{frame}{Self-Adaptive Theta Scheme}
+
+    We want a small model that varies $\theta$ at each time step. We can define these bounds and conditions:
+    \begin{align*}
+        \theta_i^{n+1} = \begin{cases}
+            max(\theta_{min}, h(u_i^n, u_i^{n+1})) & \text{if } |u_i^{n+1} - u_i^n| > \epsilon \\
+            \theta^* & \text{else} 
+        \end{cases}
+    \end{align*}
+    %And we now have a small model that varies $\theta$ at each step in order to find a better scheme.
+    We can visualize this type of scheme resolution with various values of $\theta_{min}$ and $\theta^*$:
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.6\textwidth]{SAThSc-1sttests.png}
+        %\caption{}
+    \end{figure}
+    We can already see some overlearning!
+
+\end{frame}
+
+\begin{frame}{Goals}
+        \begin{itemize}
+            \item Study the variations of the basic Theta scheme in function of $\theta$.
+            \item Find an optimal $\theta$ for the initial PDE through heuristic methods.
+            \item Implement a Self-Adaptive Theta Scheme. Experiment with $\theta$ variations.
+            \item Study a scheme based on the flux formula in space, with the Crank-Nicholson adaptive scheme in time.
+            \item Expand the method to more complex Hyperbolic systems, non-linear Transport for example.
+        \end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Bibliography}
+\nocite{*}
+\printbibliography
+\end{frame}
+
+\end{document}
