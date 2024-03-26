@@ -1,0 +1,102 @@
+\documentclass[12pt]{article}
+\usepackage{amsmath}
+\usepackage{graphicx,psfrag,epsf}
+\usepackage{enumerate}
+\usepackage{natbib}
+\usepackage{float}
+
+\usepackage{listings}
+\usepackage{xcolor}
+\lstset{ % General setup for the package
+    language=C++,
+    basicstyle=\small\sffamily,
+    numbers=left,
+    numberstyle=\tiny,
+    frame=single,
+    tabsize=4,
+    columns=fixed,
+    showtabs=false,
+    keepspaces,
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color{gray},
+    stringstyle=\color{orange},
+    showstringspaces=false,
+    breaklines=true,
+    tabsize=4,
+    escapeinside={*@}{@*},
+    xleftmargin=14mm,
+    xrightmargin=14mm,
+}
+
+\addtolength{\oddsidemargin}{-.75in}%
+\addtolength{\evensidemargin}{-.75in}%
+\addtolength{\textwidth}{1.7in}%
+\addtolength{\textheight}{1.5in}%
+\addtolength{\topmargin}{-.8in}%
+
+
+\begin{document}
+\def\spacingset#1{\renewcommand{\baselinestretch}%
+{#1}\small\normalsize} \spacingset{1}
+
+\title{\bf M1 CSMI Project\\ Adaptive Implicit Schemes for Hyperbolic Equations}
+\author{Antoine REGARDIN\hspace{.2cm}\\
+    Supervisors: Emmanuel FRANCK, Andrea THOMANN\\
+    University of Strasbourg\\ }
+\date{Spring 2024}
+\maketitle
+
+\section{Context}
+Local discontinuities -or singularities- can be important in modelling in fluids, materials or waveforms Physics.
+For example, many phenomena can be studied at the boundary between two different physical media,
+with corresponding functions presenting a jump in space.\\
+In this project, our main goal is to study an outline of numerical resolution of Transport Equations problems
+involving this kind of discontinuous functions. We will particularly work on the Self-Adaptive Theta Schemes, 
+first with the linear advection equation, then, if possible, with more complex problems.
+We will stay on a 1D spatial domain, and all of the code will be written in Python, with the help of libraries such as $numpy$, $pyplot$, or $scipy$.
+\vspace{10pt}
+
+\section{Introduction}
+
+Here is the formulation of the advection equation:
+\begin{align*}
+    \partial_t u + a\partial_x u = 0 \text{\space \space ($a$ constant)} \tag{1}
+\end{align*}
+
+\vspace{10pt}
+We want to study its solutions presenting a jump in space coordinates:
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.3\textwidth]{u0-example.png}
+    \caption{An example of initial solution for our schemes.}
+\end{figure}
+
+Usually, representing a discontinuity in space is achievable without issues, but implementing a solver in time is another problem.
+Indeed, here as our discontinuity is moving in function of the time, "a shock in space is also a shock in time".\\
+\vspace{10pt}
+
+The main idea is to start from a Theta Scheme (here for the equation (1)):
+\begin{align*}
+    \frac{u_i^{n+1} - u_i^n}{\Delta t} + a\theta d_t u^{n+1} + a(1-\theta) d_x u^n = 0 \tag{2}
+\end{align*}
+And use $\theta$ as a parameter to vary at each time step, in order to provide a kind of adaptation to the displacement of the discontinuous jump.
+For example, we can define our varying $\theta$ at a time step $n+1$ as:
+
+\begin{align*}
+    \theta_i^{n+1} = \begin{cases}
+        max(\theta_{min}, h(u_i^n, u_i^{n+1})) & \text{if } |u_i^{n+1} - u_i^n| > \epsilon \\
+        \theta^* & \text{else} 
+    \end{cases}
+\end{align*}
+
+With, for example, the reference value for $\theta$ that can follow the Crank-Nicholson method: $\theta^* = \frac{1}{2}$
+
+
+
+
+%\section{Self-Adaptive Theta Scheme}
+
+
+
+
+\end{document}

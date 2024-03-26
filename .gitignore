@@ -17,3 +17,8 @@ slides.toc
 slides.run.xml
 slides.bbl
 slides.bcf
+report.aux
+report.fdb_latexmk
+report.fls
+report.log
+report.synctex.gz

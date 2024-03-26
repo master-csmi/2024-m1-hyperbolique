@@ -22,7 +22,7 @@
     But with a function $u$ carrying a discontinuity (= a shock) in space! (and smooth everywhere else.)
     \begin{figure}
         \centering
-        \includegraphics[width=0.5\textwidth]{u0-example.png}
+        \includegraphics[width=0.6\textwidth]{u0-example.png}
         %\caption{}
     \end{figure}
     Such continuity can be used to modelize a boundary between two materials.
@@ -36,7 +36,7 @@ Usually, representing a discontinuity in space is achievable without issues, but
 
 A Theta Scheme for this equation can be written like this:
 \begin{align*}
-    \frac{u_i^{n+1} - u_i^n}{\Delta t} + a\theta\partial_t u^{n+1} + a(1-\theta)\partial_x u^n = 0
+    \frac{u_i^{n+1} - u_i^n}{\Delta t} + a\theta d_t u^{n+1} + a(1-\theta) d_x u^n = 0
 \end{align*}
 %We notice that this is a hybrid between Explicit and Implicit schemes. %When $\theta = \frac{1}{2}$, we obtain a Crank-Nicholson method.
 
