@@ -1,0 +1,3 @@
+# Adaptive Implicit Schemes for Hyperbolic Equations
+
+This project focuses on studying adaptive theta schemes for equations such as the advective transport.
