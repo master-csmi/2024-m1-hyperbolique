@@ -1,5 +1,6 @@
 \documentclass[12pt]{article}
 \usepackage{amsmath}
+\usepackage{amsfonts}
 \usepackage{graphicx,psfrag,epsf}
 \usepackage{enumerate}
 \usepackage{natbib}
@@ -46,42 +47,83 @@
 \date{Spring 2024}
 \maketitle
 
-\section{Context}
-Local discontinuities -or singularities- can be important in modelling in fluids, materials or waveforms Physics.
+\section{Introduction: Context}
+In the numerical analysis of hyperbolic problems, explicit schemes present very bad results, and solutions obtained with implicit schemes
+are too prone to dissipation. This is why Theta Schemes (including the Crank-Nicholson scheme) are an interesting compromise for their study.\\
+Another issue comes to us when studying more specific problems, with discontinuous initial solutions $u_{t=0}(x)$: when using a normal theta scheme (with any $\theta$ between 0 and 1),
+the numerical solution does not behave well around such discontinuities. A possible solution to this could be to make $\theta$ vary in function of each space and time cells of our mesh.\\
+Indeed, representing a discontinuity in space is achievable without issues, but implementing a solver in time is another problem.
+Here, as our discontinuity is moving in function of the time, "a shock in space is also a shock in time".\\
+\vspace{10pt}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.3\textwidth]{u0-example.png}
+    \caption{An example of an initial function presenting a discontinuous jump.}
+\end{figure}
+
+It is important to find a solution to this issue, as local discontinuities -or singularities- can be important in modelling in fluids, materials or waveforms Physics.
 For example, many phenomena can be studied at the boundary between two different physical media,
 with corresponding functions presenting a jump in space.\\
-In this project, our main goal is to study an outline of numerical resolution of Transport Equations problems
+To sum up, our main goal is to study an outline of numerical resolution of Transport Equations problems
 involving this kind of discontinuous functions. We will particularly work on the Self-Adaptive Theta Schemes, 
 first with the linear advection equation, then, if possible, with more complex problems.
-We will stay on a 1D spatial domain, and all of the code will be written in Python, with the help of libraries such as $numpy$, $pyplot$, or $scipy$.
 \vspace{10pt}
 
-\section{Introduction}
 
+
+\section{Material and Methods}
+First of all, we will only study the case of one-dimensional $\mathbb{R+} \times \mathbb{R} \rightarrow \mathbb{R}$ functions, and thus stay on a 1D spatial domain.
+All of the code will be written in Python, with the help of libraries such as $numpy$, $pyplot$, or $scipy$.
+
+\subsection{Code}
+All the useful functions and classes are stored in the file $SATh_utilities.py$.
+We use 4 classes to represent all the objects needed:
+\begin{itemize}
+    \item the parent class $Problem$ that calls the objects of the other classes.
+    \item the class $Mesh$ that contains the methods to create the discretized domain.
+    \item the class $Matrices$ that creates the usefuls matrices for the numerical resolution. The function \emph{Iter\_Mat}
+builds the iteration matrix for either the simple Theta Scheme (in this case, it is only called once) or the Self-Adaptive Theta Scheme (in this case, it is called at each time step).
+This class also inherits from $Mesh$.
+    \item the class $Functions$ that creates the useful functions: the item \emph{init\_sol} contains the initial function (at $t=0$) and the item \emph{exact\_sol} contains the exact solution (at $t=t_{final}$)
+\end{itemize}
+
+\subsection{Hyperbolic Equations: The Advection Equation}
 Here is the formulation of the advection equation:
 \begin{align*}
     \partial_t u + a\partial_x u = 0 \text{\space \space ($a$ constant)} \tag{1}
 \end{align*}
-
 \vspace{10pt}
-We want to study its solutions presenting a jump in space coordinates:
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.3\textwidth]{u0-example.png}
-    \caption{An example of initial solution for our schemes.}
-\end{figure}
+We will explore our numerical methods in the case of this PDE, because it is simpler. We will try to expand this study to more complex ones if possible.
 
-Usually, representing a discontinuity in space is achievable without issues, but implementing a solver in time is another problem.
-Indeed, here as our discontinuity is moving in function of the time, "a shock in space is also a shock in time".\\
-\vspace{10pt}
 
-The main idea is to start from a Theta Scheme (here for the equation (1)):
+With, for example, the reference value for $\theta$ that can follow the Crank-Nicholson method: $\theta^* = \frac{1}{2}$
+
+\subsection{The Theta Scheme for the advection equation}
+For now, we will work on a periodical spatial 1D domain of size $N$ in the interval $[a,b]$:
+\begin{align*}
+    \text{We split the field u with values} \hspace{8pt} x_i \text{,} \hspace{8pt} i \in \{0, 1, 2, \ldots, N\} \\
+    \text{And we will write} \hspace{8pt} u(t,x_i) = u_i^t
+\end{align*}
+When not explicitly written, the values of $a$ and $b$ are respectively 0 and 1, and the boundary conditions are periodical,
+meaning that the value $u_{N+1}^t$ equals to $u_0^t$.
+
+First, this method defines the following operators for the discretisation of partial differentiation:
+\begin{align*}
+    & \text{Let } u \text{ be a general function defining a field. } u^n \text{ is the state of the field at time } n. \\
+    &  d_t u = \frac{u^{n+1} - u^n}{\Delta t} \\
+    &  d_x u = \frac{u_{i+1}^n - u_i^n}{\Delta x} \quad \text{for } i \in \{1, 2, \ldots, N\}
+\end{align*}
+So that we can write the Theta Scheme (here for the equation $(1)$):
 \begin{align*}
     \frac{u_i^{n+1} - u_i^n}{\Delta t} + a\theta d_t u^{n+1} + a(1-\theta) d_x u^n = 0 \tag{2}
 \end{align*}
-And use $\theta$ as a parameter to vary at each time step, in order to provide a kind of adaptation to the displacement of the discontinuous jump.
-For example, we can define our varying $\theta$ at a time step $n+1$ as:
+This scheme has a rate of convergence of order 2 in time (except for the case $\theta=0$ where it is 1), and order 1 in space.\\
 
+
+
+%\subsection{Self-Adaptive Theta Scheme}
+We now want to use $\theta$ as a parameter to vary at each time step, in order to provide a kind of adaptation to the displacement of the discontinuous jump.
+For example, we can define our varying $\theta$ at a time step $n+1$ as:
 \begin{align*}
     \theta_i^{n+1} = \begin{cases}
         max(\theta_{min}, h(u_i^n, u_i^{n+1})) & \text{if } |u_i^{n+1} - u_i^n| > \epsilon \\
@@ -89,12 +131,8 @@ For example, we can define our varying $\theta$ at a time step $n+1$ as:
     \end{cases}
 \end{align*}
 
-With, for example, the reference value for $\theta$ that can follow the Crank-Nicholson method: $\theta^* = \frac{1}{2}$
 
-
-
-
-%\section{Self-Adaptive Theta Scheme}
+%\section 
 
 
 
