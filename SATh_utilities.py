@@ -65,7 +65,7 @@ class Mesh:
         for j in range(self.Nx+1):
             x.append((j)*self.dx -self.a)
             if j != self.Nx:
-                inter.append(x[j] + self.dt)
+                inter.append(x[j] + self.dx)
         return np.array(x), np.array(inter)
 
 
