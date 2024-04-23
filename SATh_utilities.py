@@ -107,7 +107,7 @@ class Functions():
         self.init_sol = self.init_func(mesh.nodes, params)
         self.exact_sol = self.exact(mesh.nodes, params, tf)
 
-    def init_bell(self, x, param, sigma=0.05): #To make a kind of bell curve -> continuous ditribution centered in d0=param
+    def init_bell(self, x, param, sigma=0.05): #To make a kind of bell curve -> continuous distribution centered in d0=param
         return np.exp(-0.5*((x-param)**2)/sigma**2)
 
     def init_jump1(self, x, param): #To make a piecewise-constant function with a discontinuity in d0=param (1 before, 0 after)
