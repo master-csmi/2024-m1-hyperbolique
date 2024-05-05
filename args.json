@@ -1,0 +1,15 @@
+{
+    "a": 0,
+    "b": 1,
+    "Nx": 500,
+    "cfl": 5,
+    "mesh_type": "offset_constantDx",
+    "params": 0.2,
+    "init_func": "bell",
+    "tf": 0.1,
+    "theta": 0,
+    "th_min":0.2,
+    "th_max":1,
+    "Scheme": "Theta",
+    "Path": "pictures"
+}

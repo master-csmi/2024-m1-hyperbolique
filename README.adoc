@@ -1,3 +1,8 @@
 # Adaptive Implicit Schemes for Hyperbolic Equations
 
 This project focuses on studying adaptive theta schemes for equations such as the linear transport equation.
+
+SATh_utilities.py contains all the methods.
+plotting.ipynb is a notebook where a study of the basic Theta Scheme was done.
+To load a simulation, modify the parameters as you wish in the args.json file, and run simulation.py
+(only the basic Theta Scheme is available yet)
