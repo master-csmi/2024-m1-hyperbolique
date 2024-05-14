@@ -1,0 +1,567 @@
+
+% !TEX TS-program = pdflatex
+% !TEX encoding = UTF-8 Unicodeo
+%\documentclass[aip, pof, preprint, floatfix]{revtex4-1}
+\documentclass[3p]{scrartcl}%{article}%
+
+
+%PACKAGES
+%\usepackage[utf8x]{inputenc}
+%\usepackage{titlesec}
+\usepackage{titling}
+\usepackage[hmarginratio=1:1,top=32mm,left=15mm,columnsep=1cm]{geometry} %
+%\usepackage{lmodern}
+\usepackage{array}
+\usepackage{color}
+\usepackage{tabularx}
+\usepackage{graphicx}
+\usepackage[svgnames,table,xcdraw]{xcolor}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{comment}
+\usepackage{appendix}
+%\usepackage{moreverb}
+%\usepackage{dsfont}
+%\usepackage{tipa}
+%\usepackage{upgreek}
+%\usepackage{grffile}
+\usepackage{bm}
+%\usepackage{xfrac}
+\usepackage{multirow}
+%\usepackage{soul}
+%\usepackage{ textcomp }
+\usepackage{relsize} % e.g. used for \mathsmaller
+\usepackage{fourier} % for the norm comand \Vert (it has smaller space between the vertical bars
+%then just in ||)
+\usepackage{epstopdf}
+\usepackage[font=small,labelfont=bf]{caption}	% set font of caption text
+\usepackage{multicol,booktabs}
+% \usepackage{showlabels}
+\usepackage{nomencl}	% create nomenclature
+\usepackage{pbox} % figure in matrix cells
+\usepackage{subcaption} %subtabs and subfigures
+\makenomenclature
+
+
+%% BIBLATEX options:
+%%\usepackage[sorting=none]{biblatex}
+%\usepackage[giveninits=true,url=false,doi=true,eprint=false,isbn=false,
+%backref,backrefstyle=none,sorting=none,maxbibnames=99]{biblatex}
+%\DefineBibliographyStrings{english}{%
+    %	backrefpage = {Cited on p\adddot},%
+    %	backrefpages = {Cited on pp\adddot}%
+    %}
+%
+%\bibliography{library}
+%% \bibliography{/home/utilisateur/Dropbox/library}
+%%\bibliography{/home_pers/peshkov/Dropbox/library}
+%
+%\renewcommand*{\bibfont}{\footnotesize}
+%
+%% in order to suppress 'In:'
+%\renewbibmacro{in:}{%
+    %	\ifboolexpr{%
+        %		test {\ifentrytype{article}}%
+        %	}{}{\printtext{\bibstring{in}\intitlepunct}}%
+    %}
+% END BIBLATEX options.
+
+\graphicspath{{../}}	% graphics file path
+
+
+% NEW COMMANDS
+\renewcommand{\tabularxcolumn}[1]{m{#1}}
+\newcommand\BibTeX{{\rmfamily B\kern-.05em \textsc{i\kern-.025em b}\kern-.08em
+        T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+
+%\newcommand{\familydefault}{\sfdefault} %Change the typeface of the font
+\linespread{1.05} % Line spacing - Palatino needs more space between lines
+
+
+
+
+%\renewcommand{\tabularxcolumn}[1]{m{#1}}
+
+% To have colored cited papers, hyperlinked to the
+% bibiography, help to know if papers are not cited
+% but in the bibliography still
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=Blue, % Couleur des liens internes
+    citecolor=DarkRed, % Couleur des num�ros de la biblio dans le corps
+    urlcolor=blue  } % Couleur des url
+%\usepackage[hyperpageref]{backref}
+%usepackage[square,numbers]{natbib}
+%\RequirePackage[hyperpageref]{backref}
+%\backreffrench
+%\renewcommand*{\backref}[1]{}  % Disable standard
+%\renewcommand*{\backrefalt}[4]{% Detailed backref
+    %\ifcase #1 %
+    %\relax%(Not cited.)%
+    %\or
+    %% (Cit\'e page~#2.)%
+    %(Cited page~#2.)%
+    %\else
+    %%(Cit\'e pages~#2.)
+    %(Cited page~#2.)%
+    %\fi}
+
+%\setlength{\oddsidemargin}{.5cm} \setlength{\evensidemargin}{.5cm}
+%\setlength{\textwidth}{15cm} \setlength{\textheight}{21.0cm}
+%\setlength{\topmargin}{0in}
+
+
+%\usepackage{fontspec}
+% Specify different font for section headings
+%\newfontfamily\headingfont[]{\bfseries}
+%\titleformat*{\section}{\LARGE\sffamily}
+%\titleformat*{\subsection}{\Large\sffamily}
+%\titleformat*{\subsubsection}{\large\sffamily}
+\renewcommand{\maketitlehooka}{\sffamily}
+
+
+%%%%%%%% NEW COMMANDS %%%%%%%%
+\newcommand{\pd}{\mathcal{\partial}}
+\newcommand{\ce}{{\varepsilon}}
+\newcommand{\xx}{{\boldsymbol{x}}}
+\newcommand{\yy}{{\boldsymbol{y}}}
+\newcommand{\zz}{{\boldsymbol{z}}}
+\newcommand{\q}{\boldsymbol{q}}
+\newcommand{\x}{\mbf{x}}
+\newcommand{\y}{\mbf{y}}
+\newcommand{\Th}{\mathcal{T}_h}				%mesh notation
+\newcommand{\nij}{\mathbf{n}_{ij}}				%outward unit normal to S_ij
+\newcommand{\Eel}{\mathcal{E}_{el} }			%indices set of the real cells
+\newcommand{\Ebd}{\mathcal{E}_{bd} }			%indices set of the virtual cells
+\newcommand{\tEel}{\widetilde{\mathcal{E}_{el}}}	%indices set of the real and virtual cells
+\newcommand{\Epc}{\mathcal{E}_{pc} }			%indices set of problematic cells
+\newcommand{\Unui}{\underline{\nu}(i)}		%indices set of cells linked to K_i by a side
+\newcommand{\Onui}{\overline{\nu}(i)}			%indices set of every cells linked to K_i
+\newcommand{\urec}{\widetilde u}				%polynomial rec sur K
+\newcommand{\Urec}{\widetilde U}				%polynomial rec sur K
+\newcommand{\R}{\varrho_{12}^{-1}} %NEEDED FOR POLY REC ..
+\newcommand{\CPD}{\textsf{CellPD}}
+%\newcommand{\un}{\textrm{1}}
+\newcommand{\un}{1 \hskip -3pt \textrm{I}}
+\newcommand{\Deg}[1]{ \mathsf{d}_{#1} }
+\newcommand{\EPD}{\textsf{EdgePD}}
+\newcommand{\FPD}{\textsf{FacePD}}
+\newcommand{\EPDMeth}[1]{$\mathsf{EPD}_{\mathsf{#1}}$}
+\newcommand{\mc}[1]{\mathcal{#1}}			% Simplification of usefull calligraphies
+\newcommand{\mbb}[1]{\mathbb{#1}}			%
+\newcommand{\mbf}[1]{\mathbf{#1}}			%
+\newcommand{\msf}[1]{\mathsf{#1}}		       %
+\newcommand{\mait}[1]{\mathit{#1}}			%
+\newcommand{\mfrk}[1]{\mathfrak{#1}}		%
+\newcommand{\tbf}[1]{\textbf{#1}}				%
+\newcommand{\tsf}[1]{\textsf{#1}}				%
+\newcommand{\tit}[1]{\textit{#1}}					%
+\newcommand{\trm}[1]{\textrm{#1}}
+\newcommand{\tref}{\text{ref}}
+\newcommand{\tkin}{\text{kin}}				%
+\newcommand{\noi}{\noindent}
+\newcommand{\Frac}{\displaystyle\frac}
+\newcommand{\Int}{\displaystyle\int}
+\newcommand{\Sum}{\displaystyle\sum}
+\newcommand{\Bigcup}{\displaystyle\bigcup}
+\newcommand{\Max}{\displaystyle\max}
+\newcommand{\Min}{\displaystyle\min}
+\newcommand{\Eq}[1]{equation {(\ref{#1})}}
+\newcommand{\Q}{\mathbf{Q}}
+\renewcommand{\S}{\mathbf{S}}
+\renewcommand{\u}{\mathbf{u}}
+\newcommand{\w}{\mathbf{w}}
+\newcommand{\m}{\mathbf{m}}
+\newcommand{\F}{\mathbf{F}}
+\newcommand{\f}{\mathbf{f}}
+\newcommand{\h}{\mathbf{h}}
+\newcommand{\etaB}{\eta_{\mathsmaller{B}}}
+\newcommand{\etaPL}{\eta_{\mathsmaller{PL}}}
+\newcommand{\etaHB}{\eta_{\mathsmaller{HB}}}
+\newcommand{\tauHB}{\tau_{\mathsmaller{HB}}}
+\newcommand{\cs}[1]{c_{\textrm{s},#1}}	% shear velocity in fluid
+\newcommand{\cb}[1]{c_{\textrm{b},#1}}	% bulk velocity in fluid
+\newcommand{\cp}[1]{c_{\textrm{p},#1}}	% compression or p-wave velocity in pure phase
+
+\newcommand{\Cfast}{C_\textrm{fast}}	% mixture fast characteristic velocity
+\newcommand{\Cslow}{C_\textrm{slow}}	% mixture slow characteristic velocity
+\newcommand{\Cshear}{C_\textrm{shear}}	% mixture shear characteristic velocity
+\newcommand{\csh}{c_{\textrm sh}}
+\newcommand{\Vfast}{V_\textrm{fast}}	% mixture fast p-wave V(omega)
+\newcommand{\Vslow}{V_\textrm{slow}}	% mixture slow p-wave V(omega)
+\newcommand{\Vshear}{V_\textrm{shear}}	% mixture shear sound wave
+\newcommand{\Smix}{S}
+
+\newcommand{\uphi}{{v_\theta}} % angular velocity
+\newcommand{\wphi}{{w_\theta}}
+\newcommand{\ur}{{v_r}} % radial velocity
+\renewcommand{\wr}{{w_r}}
+%\renewcommand{\v}{\mathbf{v}}
+\newcommand{\B}{\mathbf{B}}
+\newcommand{\Ell}{\mathcal{L}}
+\newcommand{\emm}{m}
+\newcommand{\dxx}[1]{ \partial_{xx} #1 }
+\newcommand{\dyy}[1]{ \partial_{yy} #1 }
+\newcommand{\dzz}[1]{ \partial_{zz} #1 }
+\newcommand{\HRule}[1]{ {\centering \rule{#1\linewidth}{0.1mm}} }
+\newcommand{\DMPutwo}{$[\text{DMP}\!\to\!u2]$}
+\newcommand{\PADDMPutwo}{$[\text{PAD}\!\to\!\text{DMP}\!\to\!u2]$}
+\newcommand{\red}[1]{{\color{red} #1}}
+\newcommand{\blue}[1]{{\color{blue} #1}}
+\newcommand{\mygreen}{\textcolor[rgb]{0.0,0.60,0.}}
+\newcommand{\myorange}{\textcolor[rgb]{0.6,0.0,0.}}
+\newcommand{\oz}[1]{ \textcolor{red}   {\texttt{\textbf{OZ: #1}}} }
+\newcommand{\rmd}{{\textrm d}}
+\newcommand{\RS}{\text{RS}}
+
+
+
+\newcommand{\bdm}{\begin{displaymath}}
+    \newcommand{\edm}{\end{displaymath}}
+
+\newcommand{\bea}{\begin{eqnarray} }
+    \newcommand{\eea}{\end{eqnarray} }
+
+\newcommand{\apriori}{\textit{a priori} }
+\newcommand{\aposteriori}{\textit{a posteriori} }
+
+\newcommand{\dev}{\textnormal{dev}}
+
+\renewcommand{\div}{{\nabla \cdot}}
+\newcommand{\divh}{{\nabla_h \cdot}}
+
+\renewcommand{\AA}{{\tensor{A}}}
+\newcommand{\aaa}{{\boldsymbol{a}}}
+\newcommand{\DD}{{\mathbf{D}}}
+\newcommand{\HH}{{\mathbf{H}}}
+\newcommand{\sfA}{{\mathsf{A}}}
+\newcommand{\sfB}{{\mathsf{B}}}
+\newcommand{\GG}{{\tensor{G}}}
+\newcommand{\g}{{\tensor{g}}}
+\newcommand{\rr}{{\mathbf{r}}}
+\newcommand{\ee}{{\mathbf{e}}}
+\newcommand{\bb}{{\mathbf{b}}}
+\newcommand{\hh}{{\mathbf{h}}}
+\newcommand{\dd}{{\mathbf{d}}}
+\newcommand{\vv}{{\mathbf{v}}}
+\newcommand{\uu}{{\mathbf{u}}}
+\newcommand{\mcE}{{\mathcal{E}}}
+\newcommand{\calI}{\mathcal{I}}
+\newcommand{\EE}{{\mathbf{E}}}
+\newcommand{\BB}{{\mathbf{B}}}
+
+\newcommand{\FF}{{\boldsymbol{F}}}
+\newcommand{\II}{{\tensor{I}}}
+\newcommand{\JJ}{{\mathbf{J}}}
+\newcommand{\QQ}{{\mathbf{Q}}}
+\renewcommand{\SS}{{\mathbf{S}}}
+\newcommand{\QV}{{\mathbf{V}}}
+\newcommand{\PP}{{\mathbf{P}}}
+%\newcommand{\SS}{{\boldsymbol{S}}}
+\newcommand{\WW}{{\mathbf{W}}}
+\newcommand{\ww}{{\bm{w}}}
+\newcommand{\wbf}{{\mathbf{w}}}
+\newcommand{\pp}{{\mathbf{p}}}
+\newcommand{\qq}{{\mathbf{q}}}
+\newcommand{\nn}{{\bm{n}}}
+
+\newcommand{\Id}{{\boldsymbol{I}}}
+\newcommand{\tr}{\textnormal{tr}}
+\newcommand{\BS}{{\tensor{\sigma}}}
+\renewcommand{\Re}{\textnormal{Re}}
+\newcommand{\transpose}{{\textrm { T}}}
+\newcommand{\Bi}{\textrm{Bi}}
+\newcommand{\mf}{c}			% mass fraction, which is usually c_1
+\newcommand{\vf}{\alpha}	% volume fraction, which is usually \alpha_1
+\newcommand{\indd}[1]{_{#1}}
+\newcommand{\indu}[1]{^{#1}}
+\newcommand{\rrat}[1]{\frac{\rho\indd{#1,\tref}}{\rho\indd{\tref}}}
+\newcommand{\dhcentral}{\partial_{h}^{s,c}}
+\newcommand{\dhp}{\partial_{h}^{s,+}}
+\newcommand{\dhm}{\partial_{h}^{s,-}}
+\newcommand{\dhs}{\partial_{h}^{s}}
+\newcommand{\refn}{\text{ref}}
+
+\newcommand*\samethanks[1][\value{footnote}]{\footnotemark[#1]}
+
+\newcommand{\ip}[1]{\textcolor{magenta}{[IP: #1]}}
+\newcommand{\at}[1]{\textcolor{blue}{[AT: #1]}}
+\newcommand{\er}[1]{\textcolor{brown}{[ER: #1]}}
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{assumption}[theorem]{Assumption}
+\newtheorem{definition}[theorem]{Definition}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% genrate filenames list of figures:
+\usepackage{letltxmacro}
+
+
+\LetLtxMacro\davidsincludegraphics\includegraphics
+
+\makeatletter
+
+%\RenewDocumentCommand{\includegraphics}{sO{}mo}{%
+    %	\IfBooleanTF{#1}{%
+        %		\davidsincludegraphics*[#2]{#3}%
+        %	}{%
+        %		\davidsincludegraphics[#2]{#3}%
+        %	}%
+    %	\begingroup
+    %	% Trying to determine the extension
+    %	\def\loc@l@ext{}
+    %	\IfValueTF{#4}{%
+        %		\def\loc@l@ext{#4}%
+        %	}{%
+        %		\IfFileExists{#3}{%
+            %		}{%
+            %			\IfFileExists{#3.pdf}{%
+                %				\edef\loc@l@ext{.pdf}%
+                %			}{%
+                %				\IfFileExists{#3.jpg}{%
+                    %					\edef\loc@l@ext{.jpg}%
+                    %				}{%
+                    %					\edef\loc@l@ext{.png}%
+                    %				}%
+                %			}%
+            %		}%
+        %	}%
+
+    %	\advance\c@figure by \@ne
+    %	\addtocontents{lfn}{\thefigure\space #3\loc@l@ext}
+    %	\endgroup
+    %}
+
+\def\@starttocbutdonotshowit#1{%
+    \begingroup
+    \makeatletter
+    \if@filesw
+    \expandafter\newwrite\csname tf@#1\endcsname
+    \immediate\openout \csname tf@#1\endcsname \jobname.#1\relax
+    \fi
+    \@nobreakfalse
+    \endgroup}
+
+
+\newcommand{\listoffigurenumbernames}{%
+    \@starttocbutdonotshowit{lfn}%
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Allow the use of \tensor{.} for both Latin and Greek letters
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\DeclareMathAlphabet{\mathsfbi}{OT1}{\sfdefault}{bx}{sl}
+\DeclareMathVersion{sfletters}
+\SetSymbolFont{letters}{sfletters}{OML}{ntxsfmi}{b}{it}
+
+\makeatletter
+\newcommand{\mathbfsbilow}[1]{%
+    \text{\mathversion{sfletters}$\m@th#1$}%
+}
+\DeclareRobustCommand{\tensor}[1]{%
+    \begingroup
+    \ifcat\noexpand #1\relax
+    % assume Greek letter
+    \edef\greek@test{\detokenize{#1}}%
+    \edef\greek@test{\expandafter\@cdr\greek@test\@nil}%
+    \edef\greek@test{\expandafter\@car\greek@test\@nil}%
+    \edef\x{\the\lccode\expandafter`\greek@test}%
+    \edef\y{\number\expandafter`\greek@test}%
+    \ifnum\x=\y\relax
+    % the command name starts with a lower-case letter
+    \mathbfsbilow{#1}%
+    \else
+    \mathsfbi{#1}%
+    \fi
+    \else
+    \mathsfbi{#1}%
+    \fi
+    \endgroup
+}
+\makeatother
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% DOC BEGINNING
+
+\newfont{\numerikEleven}{ecrm1000}
+\newfont{\numerikTen}{cmss10}
+\newfont{\numerikNine}{cmss9}
+\newfont{\numerikEight}{cmss8}
+
+% New commands for the revision :
+%\newcommand{\revOne}[2]{\textcolor{Red}{ [Rev1, Q.#1]: }\textcolor{Red}{#2}}
+%\newcommand{\revTwo}[2]{\textcolor{Green}{ [Rev2, Q.#1]: }\textcolor{Green}{#2}}
+%\newcommand{\revThree}[2]{\textcolor{Blue}{ [Rev3, Q.#1]: }\textcolor{Blue}{#2}}
+
+\newcommand{\revOne}[1]{\textcolor{Red}{#1}}
+\newcommand{\revTwo}[1]{\textcolor{Green}{#1}}
+\newcommand{\revThree}[1]{\textcolor{Blue}{#1}}
+
+
+%=========================================================================
+
+%\listfiles
+\begin{document}
+
+    % TITLE
+    \title{
+        \textbf{Solving the implicit system of the SATh-upwind scheme}
+    }
+    %-------------------------------------------------------
+    %-------------------------------------------------------
+    % AUTHORS for revtex4-1 documentclass
+    %\author{Ilya Peshkov}
+    %\email{peshkov@math.nsc.ru}
+    %\affiliation{Department of Civil, Environmental and Mechanical Engineering,
+        %	University of Trento, Via Mesiano 77, 38123 Trento, Italy}
+    %
+    %\author{Michael Dumbser}
+    %\email{michael.dumbser@unitn.it}
+    %\affiliation{Department of Civil, Environmental and Mechanical Engineering,
+        %	University of Trento, Via Mesiano 77, 38123 Trento, Italy}
+    %
+    %\author{Evgeniy Romenski}
+    %\email{evrom@math.nsc.ru}
+    %\affiliation{Sobolev Institute of Mathematics, 4 Acad. Koptyug Avenue and
+        %Novosibirsk State University, 2 Pirogova Str., Novosibirsk, Russia}
+
+    % AUTHORS for article documentclass
+    \author{
+        Andrea Thomann\thanksgap{-0.5ex}
+        %        \samethanks[1]
+        %        \textsuperscript{,}
+        %        \thanksgap{-1.25ex}
+        \thanks{Universit\'e de Strasbourg, CNRS, Inria, IRMA, F-67000 Strasbourg, France,
+            (\href{mailto:andrea.thomann@inria.fr}{andrea.thomann@inria.fr})}
+        %        \textsuperscript{,$\ast$}
+    }
+    \thanksmarkseries{arabic}
+
+    \maketitle %\maketitle must follow title, authors, abstract and \pacs
+
+    \date{\today}
+    %    {\let\thefootnote\relax\footnote{\hspace{0.25cm}$^* $Corresponding author}}
+
+    \paragraph{Abstract:}
+    \paragraph{Keywords:}
+
+
+    %-----------------------------------
+    % CONTENTS
+    %  This will dessapear in the submitted version
+    %\tableofcontents
+
+    %\begin{multicols}{2}
+    \section{The SATh-upwind scheme for linear transport}
+    Following the slides of the talk of Arbogast page 13 with a linear flux
+    \begin{equation}
+        f(u) = a u,
+    \end{equation}
+    The scheme reads in a finite volume context with $\lambda_i = a\Delta t/\Delta x_i$
+    \begin{align}
+\begin{split}
+            u_i^{n+1} - u_i^n &= - \lambda_i \left((1-\theta_i) u_i^n + \theta_i u_i^{n+1} - (1-\theta_{i-1})u_{i-1}^n - \theta_{i-1} u_{i-1}^{n+1}\right) \\
+        \tilde u_i^{n+1} - u_i^n &= - \frac{\lambda_i}{2} \left((1-\theta_i^2) u_i^n + \theta_i^2 u_i^{n+1} - (1-\theta_{i-1}^2)u_{i-1}^n - \theta_{i-1}^2 u_{i-1}^{n+1}\right).
+\end{split}
+    \end{align}
+    Let $w_i := u_i^{n+1} - u_i^n$ and $v_i := \tilde{u}_i^{n+1}-u_i^n$, then after some rearrangement of the terms, we can write the scheme as follows
+    \begin{align}
+        \label{eq.Nonlin_system}
+        \begin{split}
+            w_i + \lambda_i \theta(v_i/w_i) w_i &= - \lambda_i \left(u_i^n - \theta(v_{i-1}/w_{i-1})w_{i-1} - u_{i-1}^{n+1}\right)\\
+        v_i + \frac{\lambda_i}{2} \theta(v_i/w_i)^2 w_i &= - \frac{\lambda_i}{2} \left(u_i^n - \theta(v_{i-1}/w_{i-1})^2w_{i-1} - u_{i-1}^{n+1}\right),
+        \end{split}
+    \end{align}
+    where we used
+    \begin{equation}
+        \label{eq.Theta}
+        \theta\left(\frac{v_i}{w_i}\right):= \begin{cases}
+            \max\left(\theta_{\min},\frac{v_i}{w_i}\right) & \text{ if }\quad |w_i| > 0\\
+            \theta^\ast & \text{else.}
+        \end{cases}
+    \end{equation}
+    Note that the right hand side of \eqref{eq.Nonlin_system} is known if the system is solved in upwind direction, i.e. starting on cell 1 with known boundary data, then solving on cell 2, where data on cell 1 is known etc.
+    \subsection{Newton}
+    It remains to solve the non-linear system on cell $i$. We use Newton, i.e. we solve the system
+    \begin{equation}
+        F(\xx) = 0, \quad , F: \mathbb{R}^2 \to \mathbb{R}^2, \quad F(\xx) = x + \lambda_i
+        \begin{pmatrix}
+            \theta\left(\frac{x_1}{x_2}\right) \\\frac{1}{2}\theta\left(\frac{x_1}{x_2}\right)^2
+        \end{pmatrix} x_1 - \text{rhs}
+    \end{equation}
+    where $\xx = (w_i, v_i)^T$ and $\text{rhs}$ denotes the known right hand side values of \eqref{eq.Nonlin_system}.
+
+    For the Newton algorithm, we need the Jacobian of $F$.
+    It is given by three cases
+    \begin{enumerate}
+        \item If $|w_i| > \varepsilon$ and $\frac{v_i}{w_i} > \theta_{\min}$ then
+        \begin{equation}
+            \nabla_\xx F = J = \begin{pmatrix}
+                1 & \lambda_i \\
+                - \frac{v_i^2 \lambda_1}{2 w_i^2} & 1 + \frac{\lambda_i}{w_i}
+            \end{pmatrix}
+        \end{equation}
+        \item Else if $|w_i| > \varepsilon$ and $\frac{v_i}{w_i} \leq \theta_{\min}$ then
+                \begin{equation}
+            \nabla_\xx F = J = \begin{pmatrix}
+                1 + \theta_{\min} \lambda_i & 0 \\
+                \frac{\theta_{\min}^2}{2}\lambda_i & 1
+            \end{pmatrix}
+        \end{equation}
+        \item Else
+         \begin{equation}
+             \nabla_\xx F = J = \begin{pmatrix}
+                 1 + \theta^\ast \lambda_i & 0 \\
+                 \frac{(\theta^\ast)^2}{2}\lambda_i & 1
+             \end{pmatrix}
+         \end{equation}
+    \end{enumerate}
+    \subsection{Fixpoint iteration}
+    We propose the following fixpoint iteration to solve \eqref{eq.Nonlin_system}.
+    The idea is, to take $\theta$ in \eqref{eq.Theta} at the previous iteration.
+
+    Let $\theta^{(0)} = \theta^\ast$, then in the $k$-th iteration to obtain $w_i$, we set
+    \begin{align}
+        \label{eq.Nonlin_system_FP}
+        \begin{split}
+            w_i^{(k)} + \lambda_i \theta^{(k-1)} w_i^{(k)} &= - \lambda_i \left(u_i^n - \theta(v_{i-1}/w_{i-1})w_{i-1} - u_{i-1}^{n+1}\right)\\
+            v_i^{(k)} + \frac{\lambda_i}{2} (\theta^{(k-1)})^2 w_i^{(k)} &= - \frac{\lambda_i}{2} \left(u_i^n - \theta(v_{i-1}/w_{i-1})^2w_{i-1} - u_{i-1}^{n+1}\right).
+        \end{split}
+    \end{align}
+    Note that again, the right hand side of \eqref{eq.Nonlin_system_FP} is known, since we have already solved the equations on cell $i-1$.
+    Once we have obtained $w_i^{(k)}$ from the now linear system \eqref{eq.Nonlin_system_FP}, we set the new $\theta$ as
+    \begin{equation}
+        \theta^{(k)} = \theta\left(\frac{v_i^{(k)}}{w_i^{(k)}}\right)
+    \end{equation}
+    and solve again until a suitable error is achieved, for instance $| w_i^{(k)} - w_i^{(k-1)}| < \hat{\varepsilon}$, i.e. the relative error is changing only marginally from iteration to iteration, which means that we have converged to a solution.
+    Note, that in \eqref{eq.Nonlin_system_FP} only the first equation has to be solved implicitly, and then $v_i^{(k)}$ can be updated explicitly.
+    However, the implicit system is linear and given by
+    \begin{equation}
+         w_i^{(k)} = \left(1 + \lambda_i \theta^{(k-1)}\right)^{-1}\text{rhs}_1.
+    \end{equation}
+    It is well-posed, since $\lambda_i$ and $\theta$ are always positive.
+
+
+
+
+    %    %%=============================================================================
+    %    %%==========  B I B L I O G R A P H Y
+    %    \bibliographystyle{plain}
+    %    \bibliography{biblio.bib}
+    %    %%=============================================================================
+    %    %\printbibliography
+    %    %
+    %    %\listoffigurenumbernames
+
+\end{document}
+
