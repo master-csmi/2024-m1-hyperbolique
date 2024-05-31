@@ -17,6 +17,7 @@ slides.toc
 slides.run.xml
 slides.bbl
 slides.bcf
+slides.tex
 report.aux
 report.fdb_latexmk
 report.fls
@@ -24,3 +25,6 @@ report.log
 report.synctex.gz
 
 .venv
+
+test.ipynb
+plotting.ipynb
