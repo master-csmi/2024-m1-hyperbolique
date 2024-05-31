@@ -39,10 +39,12 @@ class Problem():
         if self.default_dict["Scheme"] == "Theta":
             self.theta = self.default_dict["Theta_st"]
             self.sol_num = self.Theta_Scheme()
+            self.sol_exc = self.sol_ex()
         
         else: #Self-Adaptive Theta Scheme
             self.solver = SATh_Solver(self)
             self.sol_num = self.solver.SATh_Scheme()
+            self.sol_exc = self.sol_ex()
             
             
     def sol_ex(self):
@@ -86,15 +88,14 @@ class SATh_Solver:     #Works only for nonperiodical boundary conditions!
     
     def theta_choice(self, v, w, epsilon=1e-6):
         if np.abs(w) > epsilon:
-            return max(self.theta_min, v/w )
+            return min(max(self.theta_min, np.abs(v/w) ),1 )
         else:
             return self.theta_st
     
 
-    def fixed_point_iter(self, theta_left, u_up_left, u_down, u_til,
-                                      w_left, lam, epsilon=1e-3):
+    def fixed_point_iter(self, theta_left, u_up_left, u_down,
+                                      w_left, lam, epsilon=1e-6):
         w = u_up_left - u_down
-        v = u_til - u_down
         w_ = epsilon + w  #To initialize
         theta = self.theta_st
 
@@ -114,7 +115,7 @@ class SATh_Solver:     #Works only for nonperiodical boundary conditions!
 
         for i in range(1, self.env.mesh.Nx +1):
             theta, w_left = self.fixed_point_iter(self.thetas[i-1], self.u_up[i-1],
-                                  self.u_down[i], self.u_til[i], w_left, self.lam)
+                                  self.u_down[i], w_left, self.lam)
             self.thetas[i] = theta
 
 
@@ -123,8 +124,8 @@ class SATh_Solver:     #Works only for nonperiodical boundary conditions!
 
         self.thetas = np.ones(self.env.mesh.Nx+1) * self.theta_st
         self.u_down = self.env.funcs.init_sol.copy()
-        self.u_til = np.empty_like(self.u_down)
         self.u_up = np.empty_like(self.u_down)
+        self.u_up[0] = self.u_down[0]
         coefs = self.env.mesh.dt*(np.eye(self.env.mesh.Nx+1)-np.diag(self.thetas))
         A = self.env.mats.Iter_Mat(self.env.mesh, self.thetas, adaptive=True)
         b = self.u_down - coefs@(self.env.mats.Dx @ self.u_down)
@@ -133,7 +134,6 @@ class SATh_Solver:     #Works only for nonperiodical boundary conditions!
         while (t<self.env.tf):
             self.u_up, _ = gmres(A, b)
 
-            self.u_til = self.interpol_quadrature()
             self.update_thetas()
 
             self.u_down = self.u_up.copy()
@@ -192,7 +192,9 @@ class Matrices():
                             [0,-1], shape=(mesh.Nx+1,mesh.Nx+1), format="lil")
             ret[0,-1] = -1
         elif b == "constant":
-            ret = sparse.diags([np.ones(mesh.Nx+1),-np.ones(mesh.Nx)],
+            dia = np.ones(mesh.Nx+1)
+            dia[0] = 0
+            ret = sparse.diags([dia,-np.ones(mesh.Nx)],
                             [0,-1], shape=(mesh.Nx+1,mesh.Nx+1), format="lil")
         return sparse.csr_matrix(ret/mesh.dx)
     
@@ -207,7 +209,7 @@ class Matrices():
                 print("parameter theta does not have a correct size")
             Id = np.identity(mesh.Nx+1)
             thetas = np.diag(theta) - np.diag(theta[1:],k=-1)
-            A = Id + mesh.dt * (self.Dx + thetas)
+            A = Id + (self.Dx + thetas) * mesh.dt
             line = np.zeros(A.shape[1])
             line[0]=1
             A[0] = line

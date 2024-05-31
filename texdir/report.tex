@@ -9,7 +9,7 @@
 \usepackage{listings}
 \usepackage{xcolor}
 \lstset{ % General setup for the package
-    language=C++,
+    language=Python,
     basicstyle=\small\sffamily,
     numbers=left,
     numberstyle=\tiny,
@@ -65,26 +65,31 @@ It is important to find a solution to this issue, as local discontinuities -or s
 For example, many phenomena can be studied at the boundary between two different physical media,
 with corresponding functions presenting a jump in space.\\
 To sum up, our main goal is to study an outline of numerical resolution of Transport Equations problems
-involving this kind of discontinuous functions. We will particularly work on the Self-Adaptive Theta Schemes, 
-first with the linear advection equation, then, if possible, with more complex problems.
+involving this kind of discontinuous functions. In this project, we will work on implementing a Self-Adaptive Theta Scheme as formulated by Pr. Arbogast, 
+in the context of the linear advection equation, that modelizes the linear displacement of a quantity in a simple moving environment:
+
+\begin{align*}
+    \partial_t u + a\partial_x u = 0 \text{\space \space ($a$ constant)} \tag{1}
+\end{align*}
 \vspace{10pt}
 
 
 
 \section{Material and Methods}
-First of all, we will only study the case of one-dimensional $\mathbb{R+} \times \mathbb{R} \rightarrow \mathbb{R}$ functions, and thus stay on a 1D spatial domain.
+First of all, we will only study the case of one-dimensional $\mathbb{R+} \times \mathbb{R} \rightarrow \mathbb{R}$ functions, and thus stay on a 1D spatial domain, parted with a constant time step.
 All of the code will be written in Python, with the help of libraries such as $numpy$, $pyplot$, or $scipy$.
 
 \subsection{Code}
-All the useful functions and classes are stored in the file $SATh_utilities.py$.
-We use 4 classes to represent all the objects needed:
+All the useful functions and classes are stored in the file $SATh\_utilities.py$.
+We use 5 classes to represent all the objects needed:
 \begin{itemize}
-    \item the parent class $Problem$ that calls the objects of the other classes.
+    \item the main class $Problem$ that calls the objects of the other classes.
     \item the class $Mesh$ that contains the methods to create the discretized domain.
-    \item the class $Matrices$ that creates the usefuls matrices for the numerical resolution. The function \emph{Iter\_Mat}
+    \item the class $Matrices$ that creates the useful matrices for the numerical resolution. The function \emph{Iter\_Mat}
 builds the iteration matrix for either the simple Theta Scheme (in this case, it is only called once) or the Self-Adaptive Theta Scheme (in this case, it is called at each time step).
 This class also inherits from $Mesh$.
     \item the class $Functions$ that creates the useful functions: the item \emph{init\_sol} contains the initial function (at $t=0$) and the item \emph{exact\_sol} contains the exact solution (at $t=t_{final}$)
+    \item the class $SATh\_Solver$ contains all the methods needed for the Self-Adaptive Theta method. It is called by the main class.
 \end{itemize}
 
 \subsection{Hyperbolic Equations: The Advection Equation}
@@ -92,49 +97,323 @@ Here is the formulation of the advection equation:
 \begin{align*}
     \partial_t u + a\partial_x u = 0 \text{\space \space ($a$ constant)} \tag{1}
 \end{align*}
+The parameter $a$ characterizes the speed and direction of the flux modelized by this equation.
+We will work with $a > 0$, meaning that, with the time going on, the flux will go from left to right in our spatial domain.
+With $a < 0$ the flux would go from right to left, this would have no consequences on the properties of our numerical solving, but it can simplify the implementation.
+
+We will work with Neumann boundary conditions: the values of the derivatives in time of the solution must be equal to 0:
+\begin{align*}
+    \partial_t u (a) = 0 = \partial_t u (b)
+\end{align*}
+Indeed, with this choice we will not be bothered by the behaviour of our solutions on the boundary.
+This will allow us to focus on the modelling of the displacement of a perturbation strictly inside the domain. See \textit{fig. 1} for an example of the functions we want to study.
+We can see that the interest is the perturbation, and that the behaviour on the boundaries is trivial.\\
+We can note that with some other types of functions, we can also work with periodical conditions.
+
 \vspace{10pt}
-We will explore our numerical methods in the case of this PDE, because it is simpler. We will try to expand this study to more complex ones if possible.
-
-
-With, for example, the reference value for $\theta$ that can follow the Crank-Nicholson method: $\theta^* = \frac{1}{2}$
 
 \subsection{The Theta Scheme for the advection equation}
-For now, we will work on a periodical spatial 1D domain of size $N$ in the interval $[a,b]$:
+
+For now, we will work on a 1D spatial domain of size $N$ in the interval $[a,b]$:\\
+Let $u$ be a general function defining a field. We split the field u with values $ x_i \text{,} \hspace{8pt} i \in \{0, 1, 2, \ldots, N\}$
+And we will write $u(t,x_i) = u_i^t$ \\
+When not explicitly written, the values of $a$ and $b$ are respectively 0 and 1.\\
+
+First, let's define the following operators for the discretisation of partial differentiation 
+(note that these are dependant of the direction of the flux $a$, here we have as stated previously $a > 0$):
 \begin{align*}
-    \text{We split the field u with values} \hspace{8pt} x_i \text{,} \hspace{8pt} i \in \{0, 1, 2, \ldots, N\} \\
-    \text{And we will write} \hspace{8pt} u(t,x_i) = u_i^t
+    & d_t u = \frac{u^{n+1} - u^n}{\Delta t} \\
+    & d_x u = 
+    \begin{cases} 
+        \frac{u_{i}^n - u_{i-1}^n}{\Delta x} & \text{for } i \in \{1, 2, \ldots, N\} \\
+        0 & \text{if } i = 0 
+    \end{cases}
 \end{align*}
-When not explicitly written, the values of $a$ and $b$ are respectively 0 and 1, and the boundary conditions are periodical,
-meaning that the value $u_{N+1}^t$ equals to $u_0^t$.
+Note that we have introduced a ghost cell at $i=0$, i.e. at the left of the domain, in order to implement the Neumann condition.
+Indeed, we will thus always have $u_0^n = u_0^{n+1}$ and $\partial_t u_0 = 0$ for every $n$.\\
+At the right boundary, we do not need to do the same thing, because we have restrained to the case where the flux goes from left to right, so the value in the last cell does not depend of another value at its right.
 
-First, this method defines the following operators for the discretisation of partial differentiation:
+\vspace{8pt}
+We can write the Theta Scheme for the equation $(1)$:
 \begin{align*}
-    & \text{Let } u \text{ be a general function defining a field. } u^n \text{ is the state of the field at time } n. \\
-    &  d_t u = \frac{u^{n+1} - u^n}{\Delta t} \\
-    &  d_x u = \frac{u_{i+1}^n - u_i^n}{\Delta x} \quad \text{for } i \in \{1, 2, \ldots, N\}
+    d_t u + a\theta d_x u^{n+1} + a(1-\theta) d_x u^n = 0 \tag{2a}
 \end{align*}
-So that we can write the Theta Scheme (here for the equation $(1)$):
-\begin{align*}
-    \frac{u_i^{n+1} - u_i^n}{\Delta t} + a\theta d_t u^{n+1} + a(1-\theta) d_x u^n = 0 \tag{2}
-\end{align*}
-This scheme has a rate of convergence of order 2 in time (except for the case $\theta=0$ where it is 1), and order 1 in space.\\
+This scheme has a rate of convergence of order 2 in time (except for the strictly explicit case $\theta=0$ where it is 1), and order 1 in space.\\
+We can see that the parameter $\theta$ defines a balance between implicit and explicit resolution.\\
+The notation $(2a)$ represents a system of equations, that we now want to write as matrices: \\
+
+\[
+\begin{array}{c}
+\displaystyle \frac{u^{n+1} - u^n}{\Delta t} + a\theta d_x u^{n+1} + a(1-\theta) d_x u^n = 0 \\
+\Leftrightarrow \\
+\displaystyle (Id + \Delta t . a \theta d_x)u^{n+1} = u^n - \Delta t .a(1-\theta)d_x u^n \\
+\Leftrightarrow \\
+
+\underbrace{
+    \begin{pmatrix}
+    & 1 & & (0) &\\
+    & -a\theta\Delta t & 1+\theta a \Delta t & & \\
+    & & \ddots & \ddots \\
+    & (0) & -a\theta\Delta t & 1+\theta a \Delta t \\
+    \end{pmatrix}
+}_{\text{$A$}}
+
+\underbrace{
+    \begin{pmatrix}
+    u_0^{n+1}\\
+    u_1^{n+1}\\
+    \vdots \\
+    u_N^{n+1}\\
+    \end{pmatrix}
+}_{\text{$u^{n+1}$}}
+=
+\underbrace{
+    \begin{pmatrix}
+    u_0^n\\
+    u_1^n - \Delta t .a(1-\theta)d_x u_1^n\\
+    \vdots \\
+    u_{N}^n - \Delta t .a(1-\theta)d_x u_{N}^n\\
+    \end{pmatrix}
+}_{b^n} \tag{2b}
+\end{array}
+\]
+We remember that, for exemple, $d_x u_1 = \frac{u_1^n - u_0^n}{\Delta x}$.\\
+$A$ is a square matrix depending of the values $\Delta t$, $a$ and $\theta$ which size is equal to the number of points in the mesh,
+and $b^n$ a vector of the same size depending of $\Delta t$, $a$, $\theta$ and the values of $u$ at the previous time step $n$.\\
+We use the \textit{csr} format of the $scipy.sparse$ library to store $A$, and we solve this system at each time iteration using the $GMRES$ algorithm function from the same library. 
 
 
-
-%\subsection{Self-Adaptive Theta Scheme}
+\subsection{Self-Adaptive Theta Scheme for the advection equation}
 We now want to use $\theta$ as a parameter to vary at each time step, in order to provide a kind of adaptation to the displacement of the discontinuous jump.
-For example, we can define our varying $\theta$ at a time step $n+1$ as:
+This is the principle of the Self-Adaptive Theta method. For a time step $n$ and a space cell of index $i$, we will solve:
+\begin{align*}
+    d_t u + a\theta_i^n d_x u^{n+1} + a(1-\theta_i^n) d_x u^n = 0 \tag{3a}
+\end{align*}
+In this case, the $\theta$ value can be different for two different space coordinates, or for the same space coordinate but at different time step.\\
+Our numerical system changes a little bit. Now we have to take care of the variation of the different $\theta$ values:
+
+\[
+\begin{array}{c}
+\underbrace{
+    \begin{pmatrix}
+    & 1 & & (0) &\\
+    & -a\theta_1^n \Delta t & 1+\theta_1^n a \Delta t & & \\
+    & & \ddots & \ddots \\
+    & (0) & -a\theta_N^n\Delta t & 1+\theta_N^n a \Delta t \\
+    \end{pmatrix}
+}_{\text{$A^n$}}
+
+\underbrace{
+    \begin{pmatrix}
+    u_0^{n+1}\\
+    u_1^{n+1}\\
+    \vdots \\
+    u_N^{n+1}\\
+    \end{pmatrix}
+}_{\text{$u^{n+1}$}}
+=
+\underbrace{
+    \begin{pmatrix}
+    u_0^n\\
+    u_1^n - \Delta t .a(1-\theta_1^n)d_x u_1^n\\
+    \vdots \\
+    u_{N}^n - \Delta t .a(1-\theta_N^n)d_x u_{N}^n\\
+    \end{pmatrix}
+}_{b^n} \tag{3b}
+\end{array}
+\]
+We need to update the matrix $A^n$ at each time step, contrary to the standard Theta method.\\
+The main challenge of this new method is to find an optimal value for each $\theta$. Pr.Arbogast proposes this choice function:
+
 \begin{align*}
     \theta_i^{n+1} = \begin{cases}
-        max(\theta_{min}, h(u_i^n, u_i^{n+1})) & \text{if } |u_i^{n+1} - u_i^n| > \epsilon \\
+        max(\theta_{min}, \frac{\tilde{u}_i^{n+1} - u_i^n}{u_i^{n+1} - u_i^n} ) & \text{if } |u_i^{n+1} - u_i^n| > \epsilon \tag{4} \\
+        \theta^* & \text{else} 
+    \end{cases}
+\end{align*}
+We introduce $\theta_{min}$ and $\theta^*$ as new parameters of the numerical method.\\
+The value $\tilde{u}_i^{n+1}$ is an interpolation of the numerical solution between two time steps.\\
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{indexmapu.png}
+    \caption{Representation of the cells and interpolations}
+\end{figure}
+In the reference paper, it is suggested to use a \textit{Discontinuity Aware Quadrature} to interpolate, in order to obtain a $\tilde{u}$
+that loses the less information possible about the perturbation, and thus get the $\theta$ value the most adapted to the discontinuity.
+For reasons of time and complexity, we chose to implement a method that does not require to compute this interpolation (as will be seen later).\\
+
+Now, we notice that, in $(4)$, we need the value $u_i^{n+1}$ in order to compute $\theta_i^{n+1}$,
+but in the other way we need $\theta_i^{n+1}$ to compute $u_i^{n+1}$.
+Mrs. Thomann suggested to use the following fixed-point iteration method to update the $\theta$ values at each time step:\\
+We note $\lambda = \frac{\Delta t}{\Delta x}$, $w_i^{n+1} = u_i^{n+1} - u_i^{n}$ and $v_i^{n+1} = \tilde{u}_i^{n+1} - u_i^{n+1}$.\\
+On Pr. Arbogast's paper, a formula is given in order to compute $w_i^{n+1}$ and $v_i^{n+1}$:
+
+\begin{align*}
+    w_i^{n+1} + \lambda \theta_i^{n+1} w_i^{n+1} = -\lambda(u_i^n - \theta_{i-1}^{n+1} w_{i-1}^{n+1} - u_{i-1}^{n+1}) \tag{5a}\\
+    v_i^{n+1} + \frac{\lambda}{2} (\theta_i^{n+1})^2 w_i^{n+1} = -\frac{\lambda}{2} (u_i^n - (\theta_{i-1}^{n+1})^2 w_{i-1}^{n+1} - u_{i-1}^{n+1}) \tag{5b}
+\end{align*}
+
+The fixed point iteration will allow us to compute $\theta_i^{n+1}$ by iterating the following system that converges towards it:
+\begin{align*}
+    w_i^{(k)} + \lambda \theta_i^{(k-1)} w_i^{(k)} = -\lambda(u_i^n - \theta_{i-1}^{(k)} w_{i-1}^{(k)} - u_{i-1}^{n+1}) \tag{6a}\\
+    v_i^{(k)} + \frac{\lambda}{2} (\theta_i^{(k-1)})^2 w_i^{(k)} = -\frac{\lambda}{2} (u_i^n - (\theta_{i-1}^{(k)})^2 w_{i-1}^{(k)} - u_{i-1}^{n+1}) \tag{6b}
+\end{align*}
+
+\begin{itemize}
+    \item For initialization, we know $u^0$ for all the space coordinates. We start with $\theta_i^0 = \theta^*$ for every $i$. This way, we can compute $u^1$ with the usual method.
+    \item At each time step, we know $u^n$ and the previously computed $\theta^n$ values.
+We compute $u^{n+1}$, and we apply the following algorithm to find one by one the values $\theta_i^{n+1}$:
+    \item We always know $w_0^{n+1} = 0$ because of the boundary condition, and, knowing $w_{i-1}^{n+1}$ we can then compute $(w_i^{n+1})^{(0)}$ with the formula $(6a)$.
+    \item Then, we iterate $(6a)$ and $(6b)$ in function of $k$: at each step we have $(w_i^{n+1})^{(k)}$, we apply $(6b)$ to compute the value $(v_i^{n+1})^{(k)}$, and we compute $(\theta_i^{n+1})^{(k)}$ with $(4)$.
+    \item We check the convergence. we stop at the step $k$ that verifies $|(w_i^{n+1})^{(k)} - (w_i^{n+1})^{(k-1)}| < \tilde{\epsilon}$ with $\tilde{\epsilon}$ a small positive value. %(we take $1e-6$ in this project).
+    \item Now we have the definitive $\theta_i^{n+1}$ and $w_i^{n+1}$, and we can start to compute these values for the space cell $i+1$.
+    \item When all the space cells are treated, we can compute the numerical solution for the next time step $u^{n+2}$ using $(3b)$.
+\end{itemize}
+
+\subsection{Remark}
+
+We used a modified version of $(4)$ in order to handle a lot of issues that happened with the original (for example, the value $v_i/w_i$ would be negative):
+\begin{align*}
+    \theta_i^{n+1} = \begin{cases}
+        min(1,max(\theta_{min},| \frac{\tilde{u}_i^{n+1} - u_i^n}{u_i^{n+1} - u_i^n}| )) & \text{if } |u_i^{n+1} - u_i^n| > \epsilon \tag{4bis} \\
         \theta^* & \text{else} 
     \end{cases}
 \end{align*}
 
+\section{Results}
+We will work with $a = 1$, as a change of the speed of the flux is not interesting yet. The same way, we will always work with a final time of $0.1$\\
+Wa want to study  and compare the behaviours of the numerical solutions, especially when the mesh precision changes, and when the CFL condition ($=\frac{a\Delta t}{\Delta x}$) changes.
 
-%\section 
+\subsection*{Theta Scheme}
+
+\subsubsection*{Continuous perturbation - Bell}
+
+First of all, we study the simple Theta Scheme with an usual continuous waveform.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{Nx500_cfl1:2_allth.png}
+    \caption{Bell shaped function, Nx=500, cfl=0.5, numerical solutions for theta from 0 to 1.}
+\end{figure}
+
+Let's plot the same thing but with a less precise spatial mesh. As the solution converges in space, we will see the different curves better with a bigger $\Delta x$:
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{Nx100_cfl1:2_allth.png}
+    \caption{Bell shaped function, Nx=100, cfl=0.5, numerical solutions for theta from 0 to 1.}
+\end{figure}
+
+Now let's see what happens with a bad CFL condition:
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{Nx500_cfl5_allth.png}
+    \caption{Bell shaped function, Nx=500, cfl=5, numerical solutions for theta from 0 to 1.}
+\end{figure}
+
+And we can visualize the errors of the numerical solutions for different settings in these conditions:
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{th_converr_thetas+Nx_cfl1:2.png}
+    \caption{CFL=0.5, errors relative to exact solution}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{th_converr_thetas+Nx_cfl5.png}
+    \caption{CFL=5, errors relative to exact solution, the first values of theta have been cut because they are significantly larger.}
+\end{figure}
+We can see that, as expected, the solution converges in space, as the errors diminish when the mesh becomes more precise.
+Moreover, we can see that, in the case of a good CFL condition, the explicit scheme is the most efficient, but in the case of a bad one, the best schemes are the ones with a $\theta$ value around $0.4$ or $0.5$, thus close to the Crank-Nicholson method.
 
 
+\subsubsection*{Discontinuous perturbation - Jump}
+We study the behaviour of theta Scheme solutions for a discontinuous function:
+The next figures correspond to the ones of the last section
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{Nx500_cfl1:2_allth_discont.png}
+    \caption{}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{Nx500_cfl5_allth_discont.png}
+    \caption{}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{th_converr_thetas+Nx_cfl1:2_discont.png}
+    \caption{}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{th_converr_thetas+Nx_cfl5_discont.png}
+    \caption{}
+\end{figure}
+
+
+\subsection*{Self-Adaptive Theta Scheme}
+As the Fixed-point iteration method is not optimal in terms of computation time, we will not present simulations with meshes of more than $Nx=500$, as they are exponentially slow.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{sath_into_implicit_comparisonbelljump.png}
+    \caption{}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{sath_thminvary_bell.png}
+    \caption{}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{sath_thminvary_bell_CFL5.png}
+    \caption{}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{sath_thstvary_bell.png}
+    \caption{}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{sath_thminvary_jump.png}
+    \caption{}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{sath_thstvary_jump.png}
+    \caption{}
+\end{figure}
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{jump_thminvary_CFL1:2.png}
+    \caption{}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{jump_thminvary_CFL5.png}
+    \caption{}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{jump_thstvary_CFL1:2.png}
+    \caption{}
+\end{figure}
+
+\section{Conclusion and Discussion}
 
 
 \end{document}
