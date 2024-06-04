@@ -14,15 +14,15 @@ To load a simulation, modify the parameters as you wish in the args.json file, a
   - "init_func": the type of funtion we want to study.
   - "tf": the duration of the simulation.
   - "Theta_st": The parameter $\theta^*$.
-  - "Theta_min": The parameter $\theta_min$.
+  - "Theta_min": The parameter $\theta_{min}$.
   - "Theta_max": in the case of the simple Theta Scheme only: the maximum value of theta we want a simulation with.
   - "Scheme": The type of Scheme: "Theta" or "SATh",
   - "Boundary": The type of boundary. Always use "constant", but "periodical" works well for the simple Theta Scheme.
 
 ## Run one simulation and obtain the corresponding plot:
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
-source .venv/bin/activate
-python3 simulation.py plot
+python3 -m venv .venv \\
+source .venv/bin/activate \\
+pip install --upgrade pip \\
+pip install -r requirements.txt \\
+source .venv/bin/activate \\
+python3 simulation.py plot \\
