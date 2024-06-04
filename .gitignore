@@ -18,6 +18,7 @@ slides.run.xml
 slides.bbl
 slides.bcf
 slides.tex
+slides.blg
 report.aux
 report.fdb_latexmk
 report.fls

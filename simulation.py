@@ -2,6 +2,7 @@ import numpy as np
 import scipy.sparse as sparse
 from scipy.sparse.linalg import gmres
 import matplotlib.pyplot as plt
+import argparse
 import json
 import os
 
@@ -55,9 +56,17 @@ def plot_problem(p):
     os.open(save_path, os.O_CREAT | os.O_TRUNC, 0o666)
     plt.savefig(save_path)
 
-
-if __name__ == "__main__":
+def main(option):
     json_file_path = "args.json"  #input("Enter the path to the .JSON file: ")
     parameters = json_todict(json_file_path)
-    print(parameters)
-    plot_problem(parameters)
+    if option == "plot":
+        print(parameters)
+        plot_problem(parameters)
+    else:
+        print(parameters)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run simulation with options.")
+    parser.add_argument("option", choices=["plot", "no_plot"], help="Option to run the simulation.")
+    args = parser.parse_args()
+    main(args.option)
