@@ -1,0 +1,29 @@
+name: Run main .py file
+
+on: [push]
+
+env:
+  BUILD_TYPE: RelWithDebInfo
+
+jobs:
+  build:
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04]
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: setting env
+      shell: bash
+      run: |
+        python3 -m venv .venv
+        source .venv/bin/activate
+
+    - name: run SATh
+      shell: bash
+
+      run: |
+        source .venv/bin/activate
+        python simulation.py
