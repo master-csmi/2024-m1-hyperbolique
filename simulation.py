@@ -2,6 +2,7 @@ import numpy as np
 import scipy.sparse as sparse
 from scipy.sparse.linalg import gmres
 import matplotlib.pyplot as plt
+import argparse
 import json
 import os
 
@@ -33,24 +34,39 @@ def plot_problem(p):
     fig, ax = plt.subplots()
     X = s.mesh.nodes
 
-    ax.plot(X, s.funcs.init_sol, "--", label="initial")
-    ax.plot(X, s.sol_ex(), ".-.", label="exact")
-    for theta in np.arange(p["th_min"]*10, p["th_max"]*10)/10:  #start at th_min= 0.2 or 0.3 if you give a bad CFL
-        p["theta"] = theta
-        s = Problem(**p)
-        ax.plot(X, s.sol_num, label=f"{theta}")
+    if p["Scheme"] == "Theta":
+        ax.plot(X, s.funcs.init_sol, "--", label="initial")
+        ax.plot(X, s.sol_ex(), ".-.", label="exact")
+        for theta in np.arange(p["Theta_min"]*10, p["Theta_max"]*10)/10:  #start at th_min= 0.2 or 0.3 if you give a bad CFL
+            p["Theta_st"] = theta
+            s = Problem(**p)
+            ax.plot(X, s.sol_num, label=f"{theta}")
+        param_title(parameters, "a","b","Theta_st","params","init_func")
+
+    else:
+        ax.plot(X, s.funcs.init_sol, "--", label="initial")
+        ax.plot(X, s.sol_ex(), ".-.", label="exact")
+        ax.plot(X, s.sol_num, label= "sol_num")
+        #plt.title(f"Theta_st: {p["Theta_st"]} ; Theta_min: {p["Theta_min"]}")
 
     plt.legend()
-    param_title(parameters, "a","b","theta","params","init_func")
 
     save_path = p["Path"] + f"/plot_{p['cfl']}_{p['Nx']}_{p['tf']}.png"
     print(save_path)
     os.open(save_path, os.O_CREAT | os.O_TRUNC, 0o666)
     plt.savefig(save_path)
 
-
-if __name__ == "__main__":
+def main(option):
     json_file_path = "args.json"  #input("Enter the path to the .JSON file: ")
     parameters = json_todict(json_file_path)
-    print(parameters)
-    plot_problem(parameters)
+    if option == "plot":
+        print(parameters)
+        plot_problem(parameters)
+    else:
+        print(parameters)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run simulation with options.")
+    parser.add_argument("option", choices=["plot", "no_plot"], help="Option to run the simulation.")
+    args = parser.parse_args()
+    main(args.option)

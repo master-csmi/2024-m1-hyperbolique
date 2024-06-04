@@ -1,16 +1,16 @@
 {
     "a": 0,
     "b": 1,
-    "Nx": 500,
-    "cfl": 5,
+    "Nx": 100,
+    "cfl": 2,
     "mesh_type": "offset_constantDx",
-    "params": 0.2,
+    "params": [0.2],
     "init_func": "jump_nonperiodical",
     "tf": 0.1,
-    "Theta_st": 0,
-    "Theta_min":0.2,
+    "Theta_st": 0.5,
+    "Theta_min":0,
     "Theta_max":1,
-    "Scheme": "Theta",
+    "Scheme": "SATh",
     "Path": "pictures",
     "Boundary":"constant"
 }

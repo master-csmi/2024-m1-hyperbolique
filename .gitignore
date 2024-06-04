@@ -18,13 +18,16 @@ slides.run.xml
 slides.bbl
 slides.bcf
 slides.tex
+slides.blg
 report.aux
 report.fdb_latexmk
 report.fls
 report.log
 report.synctex.gz
+report.toc
 
 .venv
-
 test.ipynb
 plotting.ipynb
+
+__pycache__

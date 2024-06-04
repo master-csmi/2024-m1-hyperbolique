@@ -1,0 +1,160 @@
+\documentclass[10pt]{beamer}
+\usepackage{graphicx}
+\usepackage{adjustbox}
+\usepackage[backend=biber]{biblatex}
+\addbibresource{references.bib}
+
+\usetheme{Copenhagen}
+\setbeamertemplate{navigation symbols}{}
+
+\title[Adaptive Implicit Schemes for Hyperbolic Equations]{Adaptive Implicit Schemes for Hyperbolic Equations}
+\author[]{Antoine Regardin -- Supervisors: Emmanuel Franck, Andrea Thomann}
+
+\begin{document}
+
+\frame{\titlepage}
+
+\begin{frame}{Introduction}
+    We want to study Hyperbolic PDEs such as the linear Advection Equation:
+    \begin{align*}
+        \partial_t u + a\partial_x u = 0
+    \end{align*}
+    But with a function $u$ carrying a discontinuity (= a shock) in space! (and smooth everywhere else.)
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.6\textwidth]{u0-example.png}
+        %\caption{}
+    \end{figure}
+    Such continuity can be used to modelize a boundary between two materials.
+\end{frame}
+
+\begin{frame}
+\frametitle{Theta Schemes}
+Usually, representing a discontinuity in space is achievable without issues, but implementing a solver in time is another problem. %because in our case a shock in space is also a shock in time.
+\\ A fixed scheme that works well for a certain step may not for the next ones...
+\vspace{12pt}
+
+A Theta Scheme for this equation can be written like this:
+\begin{align*}
+    d_t u + a\theta d_x u^{n+1} + a(1-\theta) d_x u^n = 0
+\end{align*}
+
+\begin{align*}
+    & d_t u = \frac{u^{n+1} - u^n}{\Delta t} \\
+    & d_x u = 
+    \begin{cases} 
+        \frac{u_{i}^n - u_{i-1}^n}{\Delta x} & \text{for } i \in \{1, 2, \ldots, N\} \\
+        0 & \text{if } i = 0 
+    \end{cases}
+\end{align*}
+%We notice that this is a hybrid between Explicit and Implicit schemes. %When $\theta = \frac{1}{2}$, we obtain a Crank-Nicholson method.
+
+%The idea is to use $\theta$ as a parameter of our model responsible of handling the shock in time, in order to have a better scheme.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Theta Schemes}
+    
+\[
+    \begin{array}{c}
+    \displaystyle \frac{u^{n+1} - u^n}{\Delta t} + a\theta d_x u^{n+1} + a(1-\theta) d_x u^n = 0 \\
+    \vspace{6pt}
+    \Leftrightarrow \\
+    \vspace{6pt}
+    \displaystyle (Id + \Delta t . a \theta d_x)u^{n+1} = u^n - \Delta t .a(1-\theta)d_x u^n \\
+    \vspace{6pt}
+    \Leftrightarrow \\
+    \vspace{6pt}
+    
+    \underbrace{
+        \begin{pmatrix}
+        & 1 & & (0) &\\
+        & -a\theta\Delta t & 1+\theta a \Delta t & & \\
+        & & \ddots & \ddots \\
+        & (0) & -a\theta\Delta t & 1+\theta a \Delta t \\
+        \end{pmatrix}
+    }_{\text{$A$}}
+    
+    \underbrace{
+        \begin{pmatrix}
+        u_0^{n+1}\\
+        u_1^{n+1}\\
+        \vdots \\
+        u_N^{n+1}\\
+        \end{pmatrix}
+    }_{\text{$u^{n+1}$}}
+    =
+    \underbrace{
+        \begin{pmatrix}
+        u_0^n\\
+        u_1^n - \Delta t .a(1-\theta)d_x u_1^n\\
+        \vdots \\
+        u_{N}^n - \Delta t .a(1-\theta)d_x u_{N}^n\\
+        \end{pmatrix}
+    }_{b^n}
+    \end{array}
+    \]
+\end{frame}
+
+\begin{frame}{Self-Adaptive Theta Scheme}
+    We want a model that varies $\theta$ at each time and space step:
+    \begin{align*}
+        d_t u + a\theta_i^n d_x u^{n+1} + a(1-\theta_i^n) d_x u^n = 0 
+    \end{align*}
+    With this choice function:
+    \begin{align*}
+        \theta_i^{n+1} = \begin{cases}
+            max(\theta_{min}, \frac{\tilde{u}_i^{n+1} - u_i^n}{u_i^{n+1} - u_i^n} ) & \text{if } |u_i^{n+1} - u_i^n| > \epsilon \\
+            \theta^* & \text{else} 
+        \end{cases}
+    \end{align*}
+    %And we now have a small model that varies $\theta$ at each step in order to find a better scheme.
+
+\end{frame}
+
+\begin{frame}{Self-Adaptive Theta Scheme}
+
+    To visualize the different cells:
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=0.7\textwidth]{indexmapu.png}
+        \caption{Representation of the cells and interpolations}
+    \end{figure}
+    
+\end{frame}
+
+\begin{frame}{Fixed-point iteration}
+    As defined in Pr. Arbogast's paper, with $\lambda = \frac{a \Delta t}{\Delta x}$:
+    \begin{align*}
+        w_i^{n+1} + \lambda \theta_i^{n+1} w_i^{n+1} = -\lambda(u_i^n - \theta_{i-1}^{n+1} w_{i-1}^{n+1} - u_{i-1}^{n+1}) \\
+        v_i^{n+1} + \frac{\lambda}{2} (\theta_i^{n+1})^2 w_i^{n+1} = -\frac{\lambda}{2} (u_i^n - (\theta_{i-1}^{n+1})^2 w_{i-1}^{n+1} - u_{i-1}^{n+1})
+    \end{align*}
+    
+    The fixed point iteration will allow us to compute $\theta_i^{n+1}$ by iterating the following system that converges towards it:
+    \begin{align*}
+        w_i^{(k)} + \lambda \theta_i^{(k-1)} w_i^{(k)} = -\lambda(u_i^n - \theta_{i-1}^{(k)} w_{i-1}^{(k)} - u_{i-1}^{n+1})\\
+        v_i^{(k)} + \frac{\lambda}{2} (\theta_i^{(k-1)})^2 w_i^{(k)} = -\frac{\lambda}{2} (u_i^n - (\theta_{i-1}^{(k)})^2 w_{i-1}^{(k)} - u_{i-1}^{n+1}) 
+    \end{align*}
+    while $|(w_i^{n+1})^{(k)} - (w_i^{n+1})^{(k-1)}| < \tilde{\epsilon}$
+\end{frame}
+
+\begin{frame}{Conclusion}
+        \begin{itemize}
+            \item This version of the SATh is not concluding, even if it is a good start.
+            \item This version of the Fixed-point iteration needs to be improved : shift of the numerical solution and long computation time.
+        \end{itemize}
+        In the future, we suggest to try a Newton method to find the adapted Thetas. We also suggest to implement a method better using the Discontinuity Aware Quadrature, as we need our scheme to be more fit to the discontinuity.
+
+\end{frame}
+
+\begin{frame}{Bibliography}
+\begin{itemize}
+    \item Arbogast, Presentation support: \textit{Self Adaptive Theta (SATh) Schemes for Solving Hyperbolic Conservation Laws}, 2024
+    \item Arbogast and Huang, \textit{A Self-Adaptive Theta Scheme using discontinuity aware quadrature for solving conservation laws}, 2021.
+    \item Boonkkamp and Anthonissen, \textit{The Finite Volume - Complete flux scheme for Advection-Diffusion-Reaction Equations}, 2011
+    \item Berzins and Furzeland, \textit{An adaptive theta method for the solution of stiff and nonstiff differential equations}, 1992
+\end{itemize}
+\end{frame}
+
+\end{document}
