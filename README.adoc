@@ -26,3 +26,10 @@ pip install --upgrade pip +
 pip install -r requirements.txt +
 source .venv/bin/activate +
 python3 simulation.py plot
+
+## Repository and tests
+  - texdir contains the .tex files and possibly other documents, images and texts.
+  - pictures is where the plots are saved
+There are no fundamental code tests for this project other than the workflow that compiles and run our python code. For the implementation, as explained in the report, one small test is suggested:
+by setting $\theta^* = 1$ and $\theta_{min} = 1$ and launch a SATh, we obtain a similar result that a standard implicit scheme.
+
