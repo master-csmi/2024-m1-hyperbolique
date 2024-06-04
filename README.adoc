@@ -20,9 +20,9 @@ To load a simulation, modify the parameters as you wish in the args.json file, a
   - "Boundary": The type of boundary. Always use "constant", but "periodical" works well for the simple Theta Scheme.
 
 ## Run one simulation and obtain the corresponding plot:
-python3 -m venv .venv \
-source .venv/bin/activate \
-pip install --upgrade pip \
-pip install -r requirements.txt \
-source .venv/bin/activate \
-python3 simulation.py plot \
+python3 -m venv .venv +
+source .venv/bin/activate +
+pip install --upgrade pip +
+pip install -r requirements.txt +
+source .venv/bin/activate +
+python3 simulation.py plot
