@@ -1,6 +1,6 @@
 /doc
 /build
-/notes
+/__pycache__
 
 *.pdf
 *.png
