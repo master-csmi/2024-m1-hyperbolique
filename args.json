@@ -2,6 +2,7 @@
     "a": 0,
     "b": 1,
     "Nx": 100,
+    "alpha": 1,
     "cfl": 2,
     "mesh_type": "offset_constantDx",
     "params": [0.2],
