@@ -12,6 +12,7 @@ class Problem():
         "b": 1,
         "Nx": 500,
         "cfl": 5,
+        "alpha": 1,
         "mesh_type": "offset_constantDx",
         "params": 0.2,
         "init_func": "bell",
@@ -29,11 +30,12 @@ class Problem():
 
         self.params = self.default_dict["params"]
         self.tf = self.default_dict["tf"]
+        self.alpha = self.default_dict["alpha"]
 
         self.mesh = Mesh(self.default_dict["a"], self.default_dict["b"], 
                          self.default_dict["Nx"], self.default_dict["cfl"], 
                          self.default_dict["Boundary"], self.default_dict["mesh_type"])
-        self.mats = Matrices(self.mesh, boundary=self.default_dict["Boundary"])
+        self.mats = Matrices(self.mesh, self.default_dict["Boundary"], self.alpha)
         self.funcs = Functions(self.mesh, self.params, self.tf, self.default_dict["init_func"])
 
         if self.default_dict["Scheme"] == "Theta":
@@ -54,11 +56,11 @@ class Problem():
         t = 0
         u = self.funcs.init_sol.copy()
         coef = self.mesh.dt*(1-self.theta)
-        A = self.mats.Iter_Mat(self.mesh, self.theta, adaptive=False)
+        A = self.mats.Iter_Mat(self.mesh, self.theta, self.alpha, adaptive=False)
         
         while (t<self.tf):
             t += self.mesh.dt
-            b = u - coef*(self.mats.Dx @ u)
+            b = u - coef*self.alpha*(self.mats.Dx @ u)
             u, _ = gmres(A, b)
 
         return u
@@ -92,6 +94,32 @@ class SATh_Solver:     #Works only for nonperiodical boundary conditions!
         else:
             return self.theta_st
     
+
+    def F(self, w, v, u, lam, thetas, i):
+        return np.array([
+            w[i] + lam * thetas[i] * w[i] + lam * (u[i] - thetas[i-1]*w[i-1] - u[i-1]),
+            v[i] + lam * .5 * thetas[i]**2 * w[i] + lam * .5 * (u[i] - thetas[i-1]**2 * w[i-1] - u[i-1])
+        ])
+
+    def compute_J(self, w, v, u, lam, thetas, i, epsilon=1e-6):    #Compute the Jacobian
+        if np.abs(w[i])>epsilon :
+            if v[i]/w[i] > self.theta_min:
+                J = np.array([[1, lam], [-v[i]**2*lam / (2*w[i]**2), 1 + lam/w[i]]])
+            else :
+                J = np.array([[1+lam*self.theta_min, 0], [lam * self.theta_min**2 / 2, 1]])
+        else :
+            J = np.array([[1+lam*self.theta_st, 0], [lam * self.theta_st**2 / 2, 1]])
+        return J
+
+
+    def Newton(self, u, epsilon=1e-6):
+        u_next = np.zeros_like(u)
+
+        while np.linalg.norm(u_next-u):
+            self.compute_J()
+
+
+        pass
 
     def fixed_point_iter(self, theta_left, u_up_left, u_down,
                                       w_left, lam, epsilon=1e-6):
@@ -127,8 +155,8 @@ class SATh_Solver:     #Works only for nonperiodical boundary conditions!
         self.u_up = np.empty_like(self.u_down)
         self.u_up[0] = self.u_down[0]
         coefs = self.env.mesh.dt*(np.eye(self.env.mesh.Nx+1)-np.diag(self.thetas))
-        A = self.env.mats.Iter_Mat(self.env.mesh, self.thetas, adaptive=True)
-        b = self.u_down - coefs@(self.env.mats.Dx @ self.u_down)
+        A = self.env.mats.Iter_Mat(self.env.mesh, self.thetas, self.env.alpha, adaptive=True)
+        b = self.u_down - self.env.alpha * coefs@(self.env.mats.Dx @ self.u_down)
         b[0] = self.u_down[0]
 
         while (t<self.env.tf):
@@ -139,8 +167,8 @@ class SATh_Solver:     #Works only for nonperiodical boundary conditions!
             self.u_down = self.u_up.copy()
             
             coefs = self.env.mesh.dt*(np.eye(self.env.mesh.Nx+1)-np.diag(self.thetas))
-            A = self.env.mats.Iter_Mat(self.env.mesh, self.thetas, adaptive=True)
-            b = self.u_down - coefs@(self.env.mats.Dx @ self.u_down)
+            A = self.env.mats.Iter_Mat(self.env.mesh, self.thetas, self.env.alpha, adaptive=True)
+            b = self.u_down - self.env.alpha * coefs@(self.env.mats.Dx @ self.u_down)
             b[0] = self.u_down[0]
 
             t += self.env.mesh.dt
@@ -181,10 +209,12 @@ class Mesh:
 
 class Matrices():
     #The matrices depend of the parameters 'boundary' and 'direction' -> boundary conditions and space scheme
-    def __init__(self, mesh, boundary, direction="toRight"):
+    def __init__(self, mesh, boundary, alpha):
 
-        if direction == "toRight":
+        if alpha >=0 :
             self.Dx = self.Dx_PtR(mesh, boundary)
+        else:
+            print("alpha<0 not available yet")
 
     def Dx_PtR(self, mesh, b):
         if b == "periodical":
@@ -198,18 +228,22 @@ class Matrices():
                             [0,-1], shape=(mesh.Nx+1,mesh.Nx+1), format="lil")
         return sparse.csr_matrix(ret/mesh.dx)
     
-    def Iter_Mat(self, mesh, theta, adaptive):
+    def Iter_Mat(self, mesh, theta, alpha, adaptive):
 
         if adaptive==False:
             Id = sparse.identity(mesh.Nx+1, format="lil")
-            return sparse.csr_matrix(Id + theta * mesh.dt * self.Dx)
+            A = Id + self.Dx * theta * mesh.dt * alpha
+            line = np.zeros(A.shape[1])
+            line[0]=1
+            A[0] = line
+            return sparse.csr_matrix(A)
 
         elif adaptive==True:
             if theta.size != mesh.Nx+1:
                 print("parameter theta does not have a correct size")
             Id = np.identity(mesh.Nx+1)
             thetas = np.diag(theta) - np.diag(theta[1:],k=-1)
-            A = Id + (self.Dx + thetas) * mesh.dt
+            A = Id + (self.Dx + thetas) * mesh.dt * alpha
             line = np.zeros(A.shape[1])
             line[0]=1
             A[0] = line

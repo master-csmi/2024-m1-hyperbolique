@@ -27,7 +27,9 @@ report.synctex.gz
 report.toc
 
 .venv
+
 test.ipynb
 plotting.ipynb
+new.ipynb
 
 __pycache__
