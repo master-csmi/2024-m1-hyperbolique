@@ -121,16 +121,16 @@ class SATh_Solver:     #Works only for nonperiodical boundary conditions!
 
         pass
 
-    def fixed_point_iter(self, theta_left, u_up_left, u_down,
+    def fixed_point_iter(self, theta_left, u_down_left, u_down,
                                       w_left, lam, epsilon=1e-6):
-        w = u_up_left - u_down
+        w = w_left #
         w_ = epsilon + w  #To initialize
         theta = self.theta_st
 
         while np.abs(w_ - w) > epsilon:
             w_ = w
-            w = (u_down - theta_left*w_left - u_up_left) / (1 + lam*theta)
-            v = (-lam/2) * (u_down - theta_left**2 * w_left - u_up_left + theta**2*w)
+            w = (u_down - theta_left*w_left - (u_down_left + w_left)) / (1 + lam*theta)
+            v = (-lam/2) * (u_down - theta_left**2 * w_left - (u_down_left + w_left) + theta**2*w)
             theta = self.theta_choice(v,w)
         
         return theta, w
@@ -138,17 +138,33 @@ class SATh_Solver:     #Works only for nonperiodical boundary conditions!
 
     def update_thetas(self):
         #self.u_down[0] = self.left_bound_val
-        w_left = self.u_up[0] - self.u_down[0]  #Boundary condition: the value at the left is constant
-        #w_left = 0  #For now, we work with a constant flux at the left, so the first w_left is equal to 0
+        #w_left = self.u_up[0] - self.u_down[0]  #Boundary condition: the value at the left is constant
+        w_left = 0  #For now, we work with a constant flux at the left, so the first w_left is equal to 0
 
         for i in range(1, self.env.mesh.Nx +1):
-            theta, w_left = self.fixed_point_iter(self.thetas[i-1], self.u_up[i-1],
+            theta, w_left = self.fixed_point_iter(self.thetas[i-1], self.u_down[i-1],
                                   self.u_down[i], w_left, self.lam)
             self.thetas[i] = theta
 
 
     def SATh_Scheme(self):
         t = 0
+        self.thetas = np.ones(self.env.mesh.Nx+1) * self.theta_st
+        self.u_down = self.env.funcs.init_sol.copy()
+        self.u_up = np.empty_like(self.u_down)
+        self.u_up[0] = self.u_down[0]
+
+        """
+        while (t<self.env.tf):
+            w_left = self.u_up[0] - self.u_down[0]
+            
+            for i in range(1, self.env.mesh.Nx +1):
+                self.thetas[i], w_left = self.fixed_point_iter(self.thetas[i-1], self.u_up[i-1],
+                                  self.u_down[i], w_left, self.lam)
+
+                self.u_up[i] = (self.u_down[i] + self.env.alpha * self.env.mesh.dt * (1-self.thetas[i]) * (self.u_down[i]-self.u_down[i-1])/self.env.mesh.dx
+                                + self.env.alpha * self.thetas[i] * self.env.mesh.dt * self.u_up[i-1] / self.env.mesh.dx) / (1 + self.env.alpha*self.thetas[i]*self.env.mesh.dt/self.env.mesh.dx)
+        """
 
         self.thetas = np.ones(self.env.mesh.Nx+1) * self.theta_st
         self.u_down = self.env.funcs.init_sol.copy()
@@ -161,10 +177,9 @@ class SATh_Solver:     #Works only for nonperiodical boundary conditions!
 
         while (t<self.env.tf):
             self.u_up, _ = gmres(A, b)
+            self.u_down = self.u_up.copy()
 
             self.update_thetas()
-
-            self.u_down = self.u_up.copy()
             
             coefs = self.env.mesh.dt*(np.eye(self.env.mesh.Nx+1)-np.diag(self.thetas))
             A = self.env.mats.Iter_Mat(self.env.mesh, self.thetas, self.env.alpha, adaptive=True)
