@@ -6,7 +6,7 @@ import argparse
 import json
 import os
 
-from SATh import *
+from Library.SATh import *
 
 def param_title(dict_, *args):
 #This function allows us to print the parameters used for the simulation as the title of a plot.

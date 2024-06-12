@@ -35,4 +35,6 @@ plots.ipynb
 new.ipynb
 tests.ipynb
 
+pyvenv.cfg
+
 __pycache__
