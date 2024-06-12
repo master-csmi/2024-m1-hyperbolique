@@ -98,7 +98,10 @@ class SATh_Solver:     #Works only for nonperiodical boundary conditions!
     def theta_choice(self, v, w, epsilon=1e-6):
         if np.abs(w) > epsilon:
             #print(np.abs(v/w > 1))
-            return min(max(self.theta_min, np.abs(v/w) ),1 )
+            #if np.abs(v/w) > self.theta_min:
+            #    print("theta=v/w",self.env.default_dict["Theta_computation"])
+            #    print(max(self.theta_min, np.abs(v/w) ))
+            return min(max(self.theta_min, np.abs(v/w) ), 1)  #
         else:
             return self.theta_st
     

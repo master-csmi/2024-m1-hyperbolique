@@ -62,21 +62,16 @@ class Matrices():
             Id = sparse.identity(mesh.Nx+1, format="lil")
             Dx = self.Dx.tolil()
             A = Id + Dx * theta * mesh.dt * alpha
-            line = np.zeros(A.shape[1])
-            line[0]=1
-            A[0] = line
+            A[0,0] = 1
             return sparse.csr_matrix(A)
 
         elif adaptive==True:
             if theta.size != mesh.Nx+1:
                 print("parameter theta does not have a correct size")
             Id = np.identity(mesh.Nx+1)
-            thetas = np.diag(theta) - np.diag(theta[1:],k=-1)
-            Dx = self.Dx.tolil()
-            A = Id + ((Dx + thetas) * mesh.dt * alpha)
-            line = np.zeros(A.shape[1])
-            line[0]=1
-            A[0] = line
+            Dx = self.Dx.toarray()
+            A = Id + ((Dx * theta[:,np.newaxis]) * mesh.dt * alpha)
+            A[0,0] = 1
             return sparse.csr_matrix(A)
 
 
