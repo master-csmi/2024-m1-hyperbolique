@@ -4,7 +4,6 @@
     "Nx": 100,
     "alpha": 1,
     "cfl": 2,
-    "mesh_type": "offset_constantDx",
     "params": [0.2],
     "init_func": "jump_nonperiodical",
     "tf": 0.1,
@@ -12,6 +11,7 @@
     "Theta_min":0,
     "Theta_max":1,
     "Scheme": "SATh",
+    "Theta_computation": "Fixed-Point",
     "Path": "pictures",
     "Boundary":"constant"
 }
