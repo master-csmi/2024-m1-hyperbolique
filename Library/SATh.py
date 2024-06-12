@@ -3,7 +3,7 @@ import scipy.sparse as sparse
 from scipy.sparse.linalg import gmres
 import matplotlib.pyplot as plt
 
-from utilities import *
+from Library.utilities import *
 
 
 class Problem():
