@@ -6,7 +6,7 @@ import argparse
 import json
 import os
 
-from SATh_utilities import *
+from SATh import *
 
 def param_title(dict_, *args):
 #This function allows us to print the parameters used for the simulation as the title of a plot.
@@ -41,7 +41,7 @@ def plot_problem(p):
             p["Theta_st"] = theta
             s = Problem(**p)
             ax.plot(X, s.sol_num, label=f"{theta}")
-        param_title(parameters, "a","b","Theta_st","params","init_func")
+        param_title(p, "a","b","Theta_st","params","init_func")
 
     else:
         ax.plot(X, s.funcs.init_sol, "--", label="initial")
