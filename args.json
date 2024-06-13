@@ -12,6 +12,9 @@
     "Theta_max":1,
     "Scheme": "SATh",
     "Theta_computation": "Fixed-Point",
+    "Theta_choice_epsilon":1e-6,
+    "Method_convergence_epsilon":1e-6,
+    "Timer":0,
     "Path": "pictures",
     "Boundary":"constant"
 }

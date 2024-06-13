@@ -73,7 +73,14 @@ class Matrices():
             A = Id + ((Dx * theta[:,np.newaxis]) * mesh.dt * alpha)
             A[0,0] = 1
             return sparse.csr_matrix(A)
+        
+    def Iter_Func(self, mesh, theta, alpha, v):   #Function version of Iter_Mat in order to build a linear operator.
+                                               #For SATh, as in the case of the simple theta scheme the matrix is only needed to be built once for all.
+        for i in range(1,v.size):
+            v[i] = v[i]*(1+ alpha*theta[i]*mesh.dt/mesh.dx) - v[i-1] * alpha*theta[i]*mesh.dt/mesh.dx
 
+        return v
+    
 
 class Functions():
     def __init__(self, mesh, params, tf, init_type):
