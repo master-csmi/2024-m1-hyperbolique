@@ -233,12 +233,14 @@ The main challenge of this new method is to find an optimal value for each $\the
 
 \begin{align*}
     \theta_i^{n+1} = \begin{cases}
-        max(\theta_{min}, \frac{\tilde{u}_i^{n+1} - u_i^n}{u_i^{n+1} - u_i^n} ) & \text{if } |u_i^{n+1} - u_i^n| > \epsilon \tag{4} \\
+        min(max(\theta_{min}, \frac{\tilde{u}_i^{n+1} - u_i^n}{u_i^{n+1} - u_i^n} ), 1) & \text{if } |u_i^{n+1} - u_i^n| > \epsilon \tag{4} \\
         \theta^* & \text{else} 
     \end{cases}
 \end{align*}
+
 We introduce $\theta_{min}$ and $\theta^*$ as new parameters of the numerical method.\\
 The value $\tilde{u}_i^{n+1}$ is an interpolation of the numerical solution between two time steps.\\
+
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.7\textwidth]{indexmapu.png}
@@ -452,5 +454,12 @@ In the future, we suggest to try a Newton method to find the adapted Thetas. We 
     \item Boonkkamp and Anthonissen, \textit{The Finite Volume - Complete flux scheme for Advection-Diffusion-Reaction Equations}, 2011
     \item Berzins and Furzeland, \textit{An adaptive theta method for the solution of stiff and nonstiff differential equations}, 1992
 \end{itemize}
+
+\begin{align*}
+    \theta_i^{n+1} = \begin{cases}
+        min(max(\theta_{min}, \frac{\tilde{u}_i^{n+1} - u_i^n}{u_i^{n+1} - u_i^n} ), 1) & \text{if } |u_i^{n+1} - u_i^n| > \epsilon \tag{4} \\
+        \theta^* & \text{else} 
+    \end{cases}
+\end{align*}
 
 \end{document}

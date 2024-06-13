@@ -24,6 +24,9 @@ class Problem():
         "Theta_max":1,
         "Scheme": "SATh", #"Theta"
         "Theta_computation":"Fixed-Point", #"Newton"
+        "Theta_choice_epsilon":1e-6,
+        "Method_convergence_epsilon":1e-6,
+        "Timer":False,
         "Path": "pictures",
         "Boundary":"constant"
         }
@@ -54,6 +57,9 @@ class Problem():
         else:
             print("Wrong Scheme type in the inputs")
             
+    def print_params(self):
+        return self.default_dict
+
     def sol_ex(self):
         return self.funcs.exact(self.mesh.nodes, self.params, self.tf)
 
@@ -94,6 +100,11 @@ class SATh_Solver:     #Works only for nonperiodical boundary conditions!
         #return ((self.env.mesh.dt/2)*self.u_down + (1 - self.env.mesh.dt/2)*self.u_up)/self.env.mesh.dt
         return self.u_down/2 + self.u_up/2
     
+    def timer(self, keyword=None):
+        if keyword == "set":
+            print(int(self.env.tf%self.env.mesh.dt) * "-")
+        else:
+            print("-",end="")
     
     def theta_choice(self, v, w, epsilon=1e-6):
         if np.abs(w) > epsilon:
@@ -135,26 +146,29 @@ class SATh_Solver:     #Works only for nonperiodical boundary conditions!
         while np.linalg.norm(w - w_) > epsilon:
             for i in range(1,self.env.mesh.Nx +1):
                 w_[i] = w[i]
+
+                self.thetas[i] = self.theta_choice(v[i],w[i],epsilon=self.env.default_dict["Theta_choice_epsilon"])
+
                 #compute step (linear system resolution)
-                s = np.linalg.solve(self.compute_J(w,v,i), -self.F(w,v,i))
+                s = np.linalg.solve(self.compute_J(w,v,i, epsilon=self.env.default_dict["Theta_choice_epsilon"]), -self.F(w,v,i))
                 #iterate Newton problem
                 w[i] += s[0]
                 v[i] += s[1]
         
         return [w,v]
-    
+
 
     def fixed_point_iter(self, theta_left, u_down_left, u_down,
                                       w_left, lam, epsilon=1e-6):
         w = w_left #
         w_ = epsilon + w  #Just to initialize
-        theta = self.theta_st
+        theta = self.theta_st   #Try wit hthe previous time step theta
 
-        while np.abs(w_ - w) > epsilon:
+        while np.abs(w_ - w) >= epsilon:
             w_ = w
             w = (u_down - theta_left*w_left - (u_down_left + w_left)) / (1 + lam*theta)
             v = (-lam/2) * (u_down - theta_left**2 * w_left - (u_down_left + w_left) + theta**2*w)
-            theta = self.theta_choice(v,w)
+            theta = self.theta_choice(v,w, epsilon=self.env.default_dict["Theta_choice_epsilon"])
         
         return theta, w
         
@@ -168,13 +182,13 @@ class SATh_Solver:     #Works only for nonperiodical boundary conditions!
 
             for i in range(1, self.env.mesh.Nx +1):
                 theta, w_left = self.fixed_point_iter(self.thetas[i-1], self.u_down[i-1],
-                                    self.u_down[i], w_left, self.lam)
+                                    self.u_down[i], w_left, self.lam, epsilon=self.env.default_dict["Method_convergence_epsilon"])
                 self.thetas[i] = theta
 
         elif self.theta_computation == "Newton":
-            [w,v] = self.Newton()
+            [w,v] = self.Newton(epsilon=self.env.default_dict["Method_convergence_epsilon"])
             for i in range(w.size):
-                self.thetas[i] = self.theta_choice(v[i],w[i])
+                self.thetas[i] = self.theta_choice(v[i],w[i], epsilon=self.env.default_dict["Theta_choice_epsilon"])
 
             self.u_til = v
 
@@ -186,22 +200,30 @@ class SATh_Solver:     #Works only for nonperiodical boundary conditions!
         self.u_up = np.empty_like(self.u_down)
         self.u_up[0] = self.u_down[0]
 
+        if self.env.default_dict["Timer"]==True:
+            self.timer("set")
+
         while (t<self.env.tf):
 
             if t!=0:
                 self.update_thetas()
+            #print(min(self.thetas), max(self.thetas))
             
             coefs = self.env.mesh.dt*(np.eye(self.env.mesh.Nx+1)-np.diag(self.thetas))
             A = self.env.mats.Iter_Mat(self.env.mesh, self.thetas, self.env.alpha, adaptive=True)
+            #A = sparse.linalg.LinearOperator((self.env.mesh.Nx+1,self.env.mesh.Nx+1), matvec=self.env.funcs.Iter_Func)
             b = self.u_down - self.env.alpha * coefs@(self.env.mats.Dx @ self.u_down)
             b[0] = self.u_down[0]
 
             self.u_up, _ = gmres(A, b)
+            #self.u_up = A.matvec(b)
             self.u_down = self.u_up.copy()
             self.u_til += self.u_up    #Only needed in the Newton method to update v (-> see line 176)
 
             t += self.env.mesh.dt
-            #print(t)
+            if self.env.default_dict["Timer"]==True:
+                self.timer()
+                #print(t)
 
         return self.u_up
 
