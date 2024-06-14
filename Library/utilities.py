@@ -125,4 +125,20 @@ class Functions():
         u0 = self.init_func(x0, params)
         return u0
 
-    
+
+class Theta_Scheme:
+    def __init__(self,env):
+        self.env = env
+
+    def solver(self):
+        t = 0
+        u = self.env.funcs.init_sol.copy()
+        coef = self.env.mesh.dt*(1-self.env.theta)
+        A = self.env.mats.Iter_Mat(self.env.mesh, self.env.theta, self.env.alpha, adaptive=False)
+        
+        while (t<self.env.tf):
+            t += self.env.mesh.dt
+            b = u - coef*self.env.alpha*(self.env.mats.Dx @ u)
+            u, _ = sparse.linalg.gmres(A, b)
+
+        return u
