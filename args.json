@@ -15,6 +15,7 @@
     "Theta_choice_epsilon":1e-6,
     "Method_convergence_epsilon":1e-6,
     "Timer":0,
+    "print_Newton_iter":0,
     "Path": "pictures",
     "Boundary":"constant"
 }
