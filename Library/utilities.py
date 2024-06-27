@@ -2,6 +2,48 @@ import numpy as np
 import scipy.sparse as sparse
 
 
+class Theta_Managing:
+    def __init__(self, solver):
+        self.solver = solver
+        self.kappa = self.solver.kappa
+        self.method = self.solver.env.params_dict["Theta_choice_method"]
+        self.near0_eps = self.solver.near0_eps
+
+    def sech(self, x):
+        return 1/np.cosh(x)
+
+
+    def dthetas_update(self, dthetas):
+        if self.method == "MinMax":
+            dthetas = np.array([1 if elem >= self.solver.theta_min else 0 for elem in self.solver.v/self.solver.w])
+        elif self.method == "Smoothing":
+            for i in range(dthetas.shape[0]):
+                if np.abs(self.solver.w[i]) > self.near0_eps:
+                    #print("max v",np.max(self.solver.v),"max w",np.max(self.solver.w),"np.max(self.v/self.w)", np.max(self.solver.v/self.solver.w), "argmax v/w:", np.argmax(self.solver.v/self.solver.w))
+                    dthetas[i] = self.kappa * (1/4) * self.sech((-0.5+self.solver.v[i]/self.solver.w[i])*self.kappa)**2
+                else:
+                    dthetas[i] = 0
+
+
+    def theta_choice(self, thetas, i, epsilon=1e-6):
+        if self.method == "MinMax":
+            if np.abs(self.solver.w[i]) > epsilon:
+                thetas[i] = min(max(self.solver.theta_min, np.abs(self.solver.v[i]/self.solver.w[i]) ), 1)
+            else:
+                thetas[i] = self.solver.theta_st
+        
+        elif self.method == "Smoothing":
+            #if self.w[i]==0:  #
+            if np.abs(self.solver.w[i])<self.near0_eps:  #
+                thetas[i] = 1
+            else:
+                thetas[i] = .75 + .25 * np.tanh(self.kappa * (-.5 + self.solver.v[i]/self.solver.w[i]))
+        
+        else :
+            raise ValueError("Wrong Theta choice method type")
+        
+
+
 class Mesh:
     def __init__(self, a, b, Nx, cfl, boundary, mesh_type="offset_constantDx"):
         self.a = a
@@ -18,7 +60,7 @@ class Mesh:
             self.nodes, self.interfaces = self.grid_offset()
 
         else:
-            print("Wrong mesh type")
+            raise ValueError("Wrong mesh type")
     
     def set_dt(self, dt):
         self.dt = dt
@@ -40,7 +82,7 @@ class Matrices():
         if alpha >=0 :
             self.Dx = self.Dx_PtR(mesh, boundary)
         else:
-            print("alpha<0 not available yet")
+            raise ValueError("alpha<0 not available yet")
 
     def Dx_PtR(self, mesh, b):
         if b == "periodical":
@@ -91,7 +133,7 @@ class Functions():
         elif init_type=="jump2":
             self.init_func = self.init_jump2
         else:
-            print("invalid init function type")
+            raise ValueError("invalid init function type")
 
         self.init_sol = self.init_func(mesh.nodes, params)
         self.exact_sol = self.exact(mesh.nodes, params, tf)
@@ -112,7 +154,7 @@ class Functions():
                                       #shape:     ___
                                       #       ___|   |___
         if len(params)!=2:
-            print("2 values needed for the coordinates of the perturbation")
+            raise ValueError("2 values needed for the coordinates of the perturbation")
         u = np.zeros_like(x, dtype=float)
         for i in range(u.shape[0]):
             if (x[i]<params[1] and x[i]>=params[0]):
