@@ -10,12 +10,22 @@ class Theta_Managing:
         self.near0_eps = self.solver.near0_eps
 
     def sech(self, x):
-        return 1/np.cosh(x)
-
+        if np.abs(x) > 20:  #in order to avoid overflow warnings
+            return 2 * np.exp(-np.abs(x))
+        else:
+            return 1/np.cosh(x)
 
     def dthetas_update(self, dthetas):
         if self.method == "MinMax":
-            dthetas = np.array([1 if elem >= self.solver.theta_min else 0 for elem in self.solver.v/self.solver.w])
+            #dthetas = np.array([1 if elem >= self.solver.theta_min else 0 for elem in self.solver.v/self.solver.w])
+            for i in range(dthetas.shape[0]):
+                if self.solver.w[i] < self.near0_eps:
+                    dthetas[i] = 0
+                else:
+                    if self.solver.v[i]/self.solver.w[i] >= self.solver.theta_min:
+                        dthetas[i] = 1
+                    else:
+                        dthetas[i] = 0
         elif self.method == "Smoothing":
             for i in range(dthetas.shape[0]):
                 if np.abs(self.solver.w[i]) > self.near0_eps:
@@ -23,7 +33,6 @@ class Theta_Managing:
                     dthetas[i] = self.kappa * (1/4) * self.sech((-0.5+self.solver.v[i]/self.solver.w[i])*self.kappa)**2
                 else:
                     dthetas[i] = 0
-
 
     def theta_choice(self, thetas, i, epsilon=1e-6):
         if self.method == "MinMax":
@@ -35,7 +44,7 @@ class Theta_Managing:
         elif self.method == "Smoothing":
             #if self.w[i]==0:  #
             if np.abs(self.solver.w[i])<self.near0_eps:  #
-                thetas[i] = 1
+                thetas[i] = self.solver.env.params_dict["Theta_max"]
             else:
                 thetas[i] = .75 + .25 * np.tanh(self.kappa * (-.5 + self.solver.v[i]/self.solver.w[i]))
         
@@ -43,20 +52,75 @@ class Theta_Managing:
             raise ValueError("Wrong Theta choice method type")
         
 
+def LF_Newton_Matrices(self, block, i):
+    #This function is used to build the Jacobian matrix for the "Jacobian" Newton method
+    mat = np.empty(shape=(2,2))
+
+    if block=="A":
+        if np.abs(self.w[i-1])<self.near0_eps:
+            mat[0,0] = -self.lam * (self.thetas[i-1] * (self.df(self.w[i-1] + self.u_up[i-1])+self.alpha))
+            mat[0,1] = 0
+            mat[1,0] = self.lam * (-.5*self.thetas[i-1]**2 * (self.df(self.w[i-1] + self.u_up[i-1]) + self.alpha))
+            mat[1,1] = 0
+        else:
+            mat[0,0] = -self.lam * (self.thetas[i-1] * (self.df(self.w[i-1] + self.u_up[i-1])+self.alpha)
+                            + (self.v[i-1]/(self.w[i-1]**2)) * self.dthetas[i-1] * (self.alpha * self.w[i-1] + self.f(self.w[i-1] + self.u_up[i-1]) - self.f(self.u_up[i-1])))
+            mat[0,1] = -(self.lam / self.w[i-1]) * (-self.f(self.u_up[i-1]) + self.alpha*self.w[i-1] + self.f(self.w[i-1] + self.u_up[i-1])) * self.dthetas[i-1]
+            mat[1,0] = self.lam * (-.5*self.thetas[i-1]**2 * (self.df(self.w[i-1] + self.u_up[i-1]) + self.alpha)
+                            + (self.v[i-1]/(self.w[i-1]**2)) * self.thetas[i-1] * self.dthetas[i-1] * (self.alpha*self.w[i-1] + self.f(self.w[i-1]+self.u_up[i-1]) - self.f(self.u_up[i-1])))
+            mat[1,1] = -self.lam * (1/self.w[i-1]) * (-self.f(self.u_up[i-1]) + self.alpha*self.w[i-1] + self.f(self.w[i-1]+self.u_up[i-1])) * self.thetas[i-1] * self.dthetas[i-1]
+
+    elif block=="B":
+        if np.abs(self.w[i])<self.near0_eps:
+            mat[0,0] = 1 + 2*self.alpha*self.lam*(self.thetas[i])
+            mat[0,1] = 0
+            mat[1,0] = 2*self.alpha*self.lam*(.5*self.thetas[i]**2)
+            mat[1,1] = 1
+        else:
+            mat[0,0] = 1 + 2*self.alpha*self.lam*(self.thetas[i] - (self.v[i]/self.w[i]) * self.dthetas[i])
+            mat[0,1] = 2*self.alpha*self.lam*self.dthetas[i]
+            mat[1,0] = 2*self.alpha*self.lam*(.5*self.thetas[i]**2 - (self.v[i]/self.w[i]) * self.thetas[i] * self.dthetas[i])
+            mat[1,1] = 1 + 2*self.alpha*self.lam*self.thetas[i]*self.dthetas[i]
+
+
+    elif block=="C":
+        
+        if np.abs(self.w[i+1]<self.near0_eps):
+            mat[0,0] = self.lam * (self.thetas[i+1] * (self.df(self.w[i+1] + self.u_up[i+1]) - self.alpha))
+            mat[0,1] = 0
+            mat[1,0] = self.lam * (.5*self.thetas[i+1]**2 * (self.df(self.w[i+1] + self.u_up[i+1]) - self.alpha))
+            mat[1,1] = 0
+        else:
+            mat[0,0] = self.lam * (self.thetas[i+1] * (self.df(self.w[i+1] + self.u_up[i+1]) - self.alpha)
+                            + (self.v[i+1]/(self.w[i+1]**2)) * self.dthetas[i+1] * (self.alpha * self.w[i+1] - self.f(self.w[i+1] + self.u_up[i+1]) + self.f(self.u_up[i+1])))
+            mat[0,1] = -(self.lam / self.w[i+1]) * (self.f(self.u_up[i+1]) + self.alpha*self.w[i+1] - self.f(self.w[i+1] + self.u_up[i+1])) * self.dthetas[i+1]
+            mat[1,0] = self.lam * (.5*self.thetas[i+1]**2 * (self.df(self.w[i+1] + self.u_up[i+1]) - self.alpha)
+                            + (self.v[i+1]/(self.w[i+1]**2)) * self.thetas[i+1] * self.dthetas[i+1] * (self.alpha*self.w[i+1] - self.f(self.w[i+1]+self.u_up[i+1]) + self.f(self.u_up[i+1])))
+            mat[1,1] = -self.lam * (1/self.w[i+1]) * (self.f(self.u_up[i+1]) + self.alpha*self.w[i+1] - self.f(self.w[i+1]+self.u_up[i+1])) * self.thetas[i+1] * self.dthetas[i+1]
+        
+    return mat        
+
 
 class Mesh:
-    def __init__(self, a, b, Nx, cfl, boundary, mesh_type="offset_constantDx"):
+    def __init__(self, a, b, Nx, tf, t, t_type, boundary, mesh_type="offset_constantDx"):
         self.a = a
         self.b = b
         self.Nx = Nx
         if boundary == "constant":  #Neumann at the left
             self.Nx += 1
-        self.cfl = cfl
+        if t_type=="Nt":
+            self.Nt = t
+        elif t_type=="cfl":
+            self.cfl = t
         self.type = mesh_type
 
         if self.type == "offset_constantDx":
             self.dx = (self.b - self.a)/(self.Nx)
-            self.dt = self.cfl*self.dx
+            if t_type=="Nt":
+                self.dt = tf / self.Nt
+                self.cfl = self.dt/self.dx  #lacks the speed parameter alpha
+            elif t_type=="cfl":
+                self.dt = self.cfl*self.dx
             self.nodes, self.interfaces = self.grid_offset()
 
         else:
@@ -125,7 +189,9 @@ class Matrices():
     
 
 class Functions():
-    def __init__(self, mesh, params, tf, init_type):
+    def __init__(self, mesh, problem, params, tf, init_type):
+        self.problem = problem
+
         if init_type=="bell":
             self.init_func = self.init_bell
         elif init_type=="jump1":
@@ -142,8 +208,8 @@ class Functions():
         return np.exp(-0.5*((x-param[0])**2)/sigma**2)
 
     def init_jump1(self, x, param): #To make a piecewise-constant function with a discontinuity in d0=param (1 before, 0 after)
-                                 #not compatible with periodical boundaries, shape: ___
-                                 #                                                     |___
+                                    #not compatible with periodical boundaries, shape: ___
+                                    #                                                     |___
         u = np.zeros_like(x, dtype=float)
         for i in range(u.shape[0]):
             if (x[i]<param[0]):
@@ -163,8 +229,14 @@ class Functions():
 
     def exact(self, x, params, tf):
         tf = np.ones_like(x)*tf
-        x0 = x-tf
-        u0 = self.init_func(x0, params)
+        if self.problem=="Linear_advection":
+            x0 = x-tf
+            u0 = self.init_func(x0, params)
+        elif self.problem=="Burgers":
+            u0 = np.zeros_like(x)
+        elif self.problem=="RIPA":
+            pass
+
         return u0
 
 
@@ -177,7 +249,7 @@ class Theta_Scheme:
         u = self.env.funcs.init_sol.copy()
         coef = self.env.mesh.dt*(1-self.env.theta)
         A = self.env.mats.Iter_Mat(self.env.mesh, self.env.theta, self.env.alpha, adaptive=False)
-        
+
         while (t<self.env.tf):
             t += self.env.mesh.dt
             b = u - coef*self.env.alpha*(self.env.mats.Dx @ u)

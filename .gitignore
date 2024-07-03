@@ -26,6 +26,9 @@ report.fls
 report.log
 report.synctex.gz
 report.toc
+report.bbl
+report.bcf
+report.run.xml
 
 .venv
 

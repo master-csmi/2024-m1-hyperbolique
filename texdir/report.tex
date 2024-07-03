@@ -3,8 +3,19 @@
 \usepackage{amsfonts}
 \usepackage{graphicx,psfrag,epsf}
 \usepackage{enumerate}
-\usepackage{natbib}
 \usepackage{float}
+
+\usepackage[utf8]{inputenc}
+\usepackage[style=authoryear,backend=biber]{biblatex}
+\addbibresource{references.bib}
+\DeclareSourcemap{
+  \maps[datatype=bibtex]{
+    \map{
+      \step[fieldset=annotation, fieldsource=annotation]
+      \step[fieldset=note, origfieldval]
+    }
+  }
+}
 
 \usepackage{listings}
 \usepackage{xcolor}
@@ -52,18 +63,19 @@
 \newpage
 
 \section{Introduction: Context}
-In the numerical analysis of hyperbolic problems, explicit schemes present very bad results, and solutions obtained with implicit schemes
+In the numerical analysis of hyperbolic problems, explicit schemes can present very bad results, and solutions obtained with implicit schemes
 are too prone to dissipation. This is why Theta Schemes (including the Crank-Nicholson scheme) are an interesting compromise for their study.\\
 Another issue comes to us when studying more specific problems, with discontinuous initial solutions $u_{t=0}(x)$: when using a normal theta scheme (with any $\theta$ between 0 and 1),
 the numerical solution does not behave well around such discontinuities. A possible solution to this could be to make $\theta$ vary in function of each space and time cells of our mesh.\\
 Indeed, representing a discontinuity in space is achievable without issues, but implementing a solver in time is another problem.
 Here, as our discontinuity is moving in function of the time, "a shock in space is also a shock in time".\\
-\vspace{10pt}
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.3\textwidth]{u0-example.png}
-    \caption{An example of an initial function presenting a discontinuous jump.}
-\end{figure}
+-> bad CFL: =>bad numerical solutions, but often necessary for studies
+-> Riemann problems, discontinuities
+
+
+-> put a figure to illustrate a Riemann problem
+-> and another for another equation (Burgers, RIPA, ...)
+
 
 It is important to find a solution to this issue, as local discontinuities -or singularities- can be important in modelling in fluids, materials or waveforms Physics.
 For example, many phenomena can be studied at the boundary between two different physical media,
@@ -261,205 +273,14 @@ On Pr. Arbogast's paper, a formula is given in order to compute $w_i^{n+1}$ and 
     v_i^{n+1} + \frac{\lambda}{2} (\theta_i^{n+1})^2 w_i^{n+1} = -\frac{\lambda}{2} (u_i^n - (\theta_{i-1}^{n+1})^2 w_{i-1}^{n+1} - u_{i-1}^{n+1}) \tag{5b}
 \end{align*}
 
-The fixed point iteration will allow us to compute $\theta_i^{n+1}$ by iterating the following system that converges towards it:
 \begin{align*}
     w_i^{(k)} + \lambda \theta_i^{(k-1)} w_i^{(k)} = -\lambda(u_i^n - \theta_{i-1}^{(k)} w_{i-1}^{(k)} - u_{i-1}^{n+1}) \tag{6a}\\
     v_i^{(k)} + \frac{\lambda}{2} (\theta_i^{(k-1)})^2 w_i^{(k)} = -\frac{\lambda}{2} (u_i^n - (\theta_{i-1}^{(k)})^2 w_{i-1}^{(k)} - u_{i-1}^{n+1}) \tag{6b}
 \end{align*}
 
-\begin{itemize}
-    \item For initialization, we know $u^0$ for all the space coordinates. We start with $\theta_i^0 = \theta^*$ for every $i$. This way, we can compute $u^1$ with the usual method.
-    \item At each time step, we know $u^n$ and the previously computed $\theta^n$ values.
-We compute $u^{n+1}$, and we apply the following algorithm to find one by one the values $\theta_i^{n+1}$:
-    \item We always know $w_0^{n+1} = 0$ because of the boundary condition, and, knowing $w_{i-1}^{n+1}$ we can then compute $(w_i^{n+1})^{(0)}$ with the formula $(6a)$.
-    \item Then, we iterate $(6a)$ and $(6b)$ in function of $k$: at each step we have $(w_i^{n+1})^{(k)}$, we apply $(6b)$ to compute the value $(v_i^{n+1})^{(k)}$, and we compute $(\theta_i^{n+1})^{(k)}$ with $(4)$.
-    \item We check the convergence. we stop at the step $k$ that verifies $|(w_i^{n+1})^{(k)} - (w_i^{n+1})^{(k-1)}| < \tilde{\epsilon}$ with $\tilde{\epsilon}$ a small positive value. %(we take $1e-6$ in this project).
-    \item Now we have the definitive $\theta_i^{n+1}$ and $w_i^{n+1}$, and we can start to compute these values for the space cell $i+1$.
-    \item When all the space cells are treated, we can compute the numerical solution for the next time step $u^{n+2}$ using $(3b)$.
-\end{itemize}
 
+test: \textcite{arbogast2021}
 
-\section{Results}
-We will work with $a = 1$, as a change of the speed of the flux is not interesting yet. The same way, we will always work with a final time of $0.1$\\
-Wa want to study  and compare the behaviours of the numerical solutions, especially when the mesh precision changes, and when the CFL condition ($=\frac{a\Delta t}{\Delta x}$) changes.
-
-\subsection*{Theta Scheme}
-
-\subsubsection*{Continuous perturbation - Bell}
-
-First of all, we study the simple Theta Scheme with an usual continuous waveform.
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.5\textwidth]{Nx500_cfl1:2_allth.png}
-    \caption{Bell shaped function, Nx=500, cfl=0.5, numerical solutions for theta from 0 to 1.}
-\end{figure}
-
-Let's plot the same thing but with a less precise spatial mesh. As the solution converges in space, we will see the different curves better with a bigger $\Delta x$:
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.5\textwidth]{Nx100_cfl1:2_allth.png}
-    \caption{Bell shaped function, Nx=100, cfl=0.5, numerical solutions for theta from 0 to 1.}
-\end{figure}
-
-Now let's see what happens with a bad CFL condition:
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.5\textwidth]{Nx500_cfl5_allth.png}
-    \caption{Bell shaped function, Nx=500, cfl=5, numerical solutions for theta from 0.2 to 1.}
-\end{figure}
-The first theta has been cut because the associated solution gets out of bounds, with values exceeding $10^5$.
-We can visualize the errors of the numerical solutions for different settings in these conditions:
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.6\textwidth]{th_converr_thetas+Nx_cfl1:2.png}
-    \caption{CFL=0.5, errors relative to exact solution, log scale.}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.6\textwidth]{th_converr_thetas+Nx_cfl5.png}
-    \caption{CFL=5, errors relative to exact solution, log scale. The first values of theta have been cut because they are significantly larger.}
-\end{figure}
-We can see that, as expected, the solution converges in space, as the errors diminish when the mesh becomes more precise.
-Moreover, in the case of a good CFL condition, the explicit scheme is the most efficient, but in the case of a bad one, the best schemes are the ones with a $\theta$ value around $0.4$ or $0.5$, thus close to the Crank-Nicholson method.
-
-
-\subsubsection*{Discontinuous perturbation - Jump}
-We study the behaviour of theta Scheme solutions for a discontinuous function:
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.5\textwidth]{Nx500_cfl1:2_allth_discont.png}
-    \caption{Discontinuous function, Nx=500, cfl=0.5, numerical solutions for theta from 0 to 1.}
-\end{figure}
-The standard Theta Scheme is very bad at preserving the discontinuous shape of our function.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.5\textwidth]{Nx500_cfl5_allth_discont.png}
-    \caption{Discontinuous function, Nx=500, cfl=5, numerical solutions for theta from 0.4 to 1}
-\end{figure}
-With a bad CFL condition, it is worse, and the most explicit schemes trigger the apparition of oscillations. For $\theta$ values lower than $0.4$, the oscillations explode.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.5\textwidth]{th_converr_thetas+Nx_cfl1:2_discont.png}
-    \caption{CFL=0.2, errors relative to exact solution, log scale.}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.5\textwidth]{th_converr_thetas+Nx_cfl5_discont.png}
-    \caption{CFL=5, errors relative to exact solution, log scale. The first values of theta have been cut because they are significantly larger.}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.5\textwidth]{th_converr_thetas+Nx_cfl5_discont_allthetas.png}
-    \caption{CFL=5, errors relative to exact solution, log scale. We plot all the values of theta for the biggest two meshes.}
-\end{figure}
-Even if a lot of oscillations appear, we have the same tendancies than for the continuous function:
-the most explicit schemes are better for the good CFL condition, and the ones closer the Crank-Nicholson are better for the bad CFL condition.\\
-
-\subsection*{Self-Adaptive Theta Scheme}
-As the Fixed-point iteration method is not optimal in terms of computation time, we will not present simulations with meshes of more than $Nx=500$, as they are exponentially slow.\\
-
-Let's start with computing the numerical solutions with $\theta^* = 1$ and $\theta_min = 1$.
-because of the choice function $(4)$, this is equivalent to a standard Theta Scheme with $\theta = 1$.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.7\textwidth]{sath_into_implicit_comparisonbelljump.png}
-    \caption{Both shapes with $\theta^* = 1$ and $\theta_min = 1$. The green curve is the numerical solution.}
-\end{figure}
-We have indeed the same behaviour than in the previous parts (see figures 3 and 8).\\
-
-Now let's study the behaviour for different cases of $\theta^*$ and $\theta_min$:
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.7\textwidth]{sath_thminvary_bell.png}
-    \caption{Bell function, Nx=500, CFL+0.5, $\theta_st=0.5$}
-\end{figure}
-The results are offset with a good CFL.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.7\textwidth]{sath_thminvary_jump_CFL5.png}
-    \caption{Bell function, Nx=500, CFL=5, $\theta_st=0.5$}
-\end{figure}
-The results are dissipated, but with a less important offset with a  bad CFL.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.7\textwidth]{sath_thstvary_bell.png}
-    \caption{Bell function, Nx=500, $\theta_min=0.5$}
-\end{figure}
-The variation of $\theta_st$ has an influence on the direction of the leaning of the curve. it is coherent, as it affects the weights of the right and left cell in the scheme.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.7\textwidth]{sath_thminvary_jump.png}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.7\textwidth]{sath_thminvary_bell_CFL5.png}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.7\textwidth]{sath_thstvary_jump.png}
-\end{figure}
-
-The results are quite the same for the discontinuous function, with the particularity that the offset seems more impactful.\\
-Lets plot some errors:
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.7\textwidth]{jump_thminvary_CFL1:2.png}
-    \caption{varying $\theta_min$, CFL=0.5}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.7\textwidth]{jump_thminvary_CFL5.png}
-    \caption{varying $\theta_min$, CFL=5}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.7\textwidth]{jump_thstvary_CFL1:2.png}
-    \caption{varying $\theta^*$, CFL=0.5}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.7\textwidth]{jump_thstvary_CFL5.png}
-    \caption{varying $\theta^*$, CFL=5}
-\end{figure}
-
-\section{Conclusion and Discussion}
-In conclusion, this version of the Self-Adaptive Theta Scheme is not really efficient. The errors are similar or worse than the simple Theta Scheme for every configuration, except sometimes when the CFL is bad with discontinuous functions.
-We can nonetheless note that the scheme is able to adapt to some extent to the discontinuity, so the future is not so dark.\\
-The actual Fixed-point iteration method seems not to work, and its computation times are really big. I have checked many times the implementation, but maybe some errors have not been spotted.\\
-In the future, we suggest to try a Newton method to find the adapted Thetas. We also suggest to implement a method better using the Discontinuity Aware Quadrature, as we need our scheme to be more fit to the discontinuity.
-
-\section{Bibliography}
-
-\begin{itemize}
-    \item Arbogast, Presentation support: \textit{Self Adaptive Theta (SATh) Schemes for Solving Hyperbolic Conservation Laws}, 2024
-    \item Arbogast and Huang, \textit{A Self-Adaptive Theta Scheme using discontinuity aware quadrature for solving conservation laws}, 2021.
-    \item Boonkkamp and Anthonissen, \textit{The Finite Volume - Complete flux scheme for Advection-Diffusion-Reaction Equations}, 2011
-    \item Berzins and Furzeland, \textit{An adaptive theta method for the solution of stiff and nonstiff differential equations}, 1992
-\end{itemize}
-
-\begin{align*}
-    \theta_i^{n+1} = \begin{cases}
-        min(max(\theta_{min}, \frac{\tilde{u}_i^{n+1} - u_i^n}{u_i^{n+1} - u_i^n} ), 1) & \text{if } |u_i^{n+1} - u_i^n| > \epsilon \tag{4} \\
-        \theta^* & \text{else} 
-    \end{cases}
-\end{align*}
+\printbibliography
 
 \end{document}
