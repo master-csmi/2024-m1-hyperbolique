@@ -15,20 +15,25 @@
 
     "Scheme": "SATh",
     "Flux": "UP",
+    "Scheme_tol":1e-9,
+    "Scheme_maxiter":30,
 
         "Theta_st": 0.5,
         "Theta_min": 0.5,
         "Theta_max": 1, 
 
         "Theta_solving_method": "Newton", 
-        "Method_convergence_epsilon": 1e-6,
+        "Newton_convergence_epsilon": 1e-6,
+        "Newton_maxiter":100,
         "Theta_choice_method": "MinMax",
             "kappa": 10,
             "Theta_choice_epsilon": 1e-6,
         "Newton_solver": "LO_NewtonKrylov",
             "Jacobian_method": "Classic",
 
+    "Auto_launch_computation":1,
     "Timer":0,
     "print_Newton_iter":0,
-    "Path": "../pictures"
+    "Path": "../pictures",
+    "Animation":0
 }

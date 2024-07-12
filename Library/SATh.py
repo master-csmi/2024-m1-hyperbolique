@@ -342,7 +342,6 @@ class SATh_Solver:
                 self.Th.dthetas_update(self.dthetas)
 
 
-        #"""#Does not currently work
         elif self.env.params_dict["Newton_solver"] == "Jacobian" or self.env.params_dict["Flux"]=="UP":
 
             while np.linalg.norm(self.w - w_) >= epsilon and iter<maxiter:
