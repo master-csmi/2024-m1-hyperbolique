@@ -31,7 +31,7 @@
         "Newton_solver": "LO_NewtonKrylov",
             "Jacobian_method": "Classic",
 
-    "Auto_launch_computation":1,
+    "Auto_launch_computation":0,
     "Timer":0,
     "print_Newton_iter":0,
     "Path": "../pictures",
