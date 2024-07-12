@@ -51,7 +51,7 @@ def plot_problem(p):
 
     plt.legend()
 
-    save_path = p["Path"] + f"/plot_{p['cfl']}_{p['Nx']}_{p['tf']}.png"
+    save_path = p["Path"] + f"/plot_{p["Problem"]}_{p["Flux"]}_{p["Theta_choice_method"]}_cfl{p['cfl']}_Nx{p['Nx']}_tf{p['tf']}.png"
     print(save_path)
     os.open(save_path, os.O_CREAT | os.O_TRUNC, 0o666)
     plt.savefig(save_path)

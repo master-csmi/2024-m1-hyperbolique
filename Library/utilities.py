@@ -37,7 +37,8 @@ class Theta_Managing:
     def theta_choice(self, thetas, i, epsilon=1e-6):
         if self.method == "MinMax":
             if np.abs(self.solver.w[i]) > epsilon:
-                thetas[i] = min(max(self.solver.theta_min, np.abs(self.solver.v[i]/self.solver.w[i]) ), 1)
+                thetas[i] = min(max(self.solver.theta_min, np.abs(self.solver.v[i]/self.solver.w[i]) ), 
+                                self.solver.env.params_dict["Theta_max"])
             else:
                 thetas[i] = self.solver.theta_st
         
@@ -97,8 +98,8 @@ def LF_Newton_Matrices(self, block, i):
             mat[1,0] = self.lam * (.5*self.thetas[i+1]**2 * (self.df(self.w[i+1] + self.u_up[i+1]) - self.alpha)
                             + (self.v[i+1]/(self.w[i+1]**2)) * self.thetas[i+1] * self.dthetas[i+1] * (self.alpha*self.w[i+1] - self.f(self.w[i+1]+self.u_up[i+1]) + self.f(self.u_up[i+1])))
             mat[1,1] = -self.lam * (1/self.w[i+1]) * (self.f(self.u_up[i+1]) + self.alpha*self.w[i+1] - self.f(self.w[i+1]+self.u_up[i+1])) * self.thetas[i+1] * self.dthetas[i+1]
-        
-    return mat        
+
+    return mat
 
 
 class Mesh:
@@ -161,36 +162,57 @@ class Matrices():
                             [0,-1], shape=(mesh.Nx+1,mesh.Nx+1), format="lil")
         
         return sparse.csr_matrix(ret/mesh.dx)
-    
-    def Iter_Mat(self, mesh, theta, alpha, adaptive):
 
-        if adaptive==False:
-            Id = sparse.identity(mesh.Nx+1, format="lil")
-            Dx = self.Dx.tolil()
-            A = Id + Dx * theta * mesh.dt * alpha
-            A[0,0] = 1
-            return sparse.csr_matrix(A)
 
-        elif adaptive==True:
-            if theta.size != mesh.Nx+1:
-                print("parameter theta does not have a correct size")
-            Id = np.identity(mesh.Nx+1)
-            Dx = self.Dx.toarray()
-            A = Id + ((Dx * theta[:,np.newaxis]) * mesh.dt * alpha)
-            A[0,0] = 1
-            return sparse.csr_matrix(A)
+    def Iter_Mat(self, mesh, theta, alpha, adaptive, flux, boundary):
+        if flux=="UP":
+            if adaptive==False:
+                Id = sparse.identity(mesh.Nx+1, format="lil")
+                Dx = self.Dx.tolil()
+                A = Id + Dx * theta * mesh.dt * alpha
+                A[0,0] = 1
+                return sparse.csr_matrix(A)
+
+            elif adaptive==True:
+                if theta.size != mesh.Nx+1:
+                    print("parameter theta does not have a correct size")
+                Id = np.identity(mesh.Nx+1)
+                Dx = self.Dx.toarray()
+                A = Id + ((Dx * theta[:,np.newaxis]) * mesh.dt * alpha)
+                A[0,0] = 1
+                return sparse.csr_matrix(A)
         
-    def Iter_Func(self, mesh, theta, alpha, v):   #Function version of Iter_Mat in order to build a linear operator.
+        if flux=="LF":
+            A = np.zeros(shape=(mesh.Nx+1, mesh.Nx+1))
+            for i in range(1,mesh.Nx):
+                A[i,i] = 1 + alpha * theta[i] * mesh.dt / mesh.dx
+                A[i, i-1] = - alpha * theta[i] * mesh.dt / (2*mesh.dx)
+                A[i, i+1] = - alpha * theta[i] * mesh.dt / (2*mesh.dx)
+
+            if boundary=="constant":
+                A[0,0] = 1.
+                A[-1,-1] = 1.
+            elif boundary=="periodic":
+                A[0,0] = 1 + alpha * theta[i] * mesh.dt / mesh.dx
+                A[0,1] = - alpha * theta[i] * mesh.dt / (2*mesh.dx)
+                A[0,-1] = - alpha * theta[i] * mesh.dt / (2*mesh.dx)
+                A[-1,0] = - alpha * theta[i] * mesh.dt / (2*mesh.dx)
+                A[-1,-2] = - alpha * theta[i] * mesh.dt / (2*mesh.dx)
+                A[-1,-1] = 1 + alpha * theta[i] * mesh.dt / mesh.dx
+        return sparse.csr_matrix(A)
+        
+"""    def Iter_Func(self, mesh, theta, alpha, v):   #Function version of Iter_Mat in order to build a linear operator.
                                                #For SATh, as in the case of the simple theta scheme the matrix is only needed to be built once for all.
         for i in range(1,v.size):
             v[i] = v[i]*(1+ alpha*theta[i]*mesh.dt/mesh.dx) - v[i-1] * alpha*theta[i]*mesh.dt/mesh.dx
 
-        return v
+        return v"""
     
 
 class Functions():
     def __init__(self, mesh, problem, params, tf, init_type):
         self.problem = problem
+        self.type = init_type
 
         if init_type=="bell":
             self.init_func = self.init_bell
@@ -211,9 +233,14 @@ class Functions():
                                     #not compatible with periodical boundaries, shape: ___
                                     #                                                     |___
         u = np.zeros_like(x, dtype=float)
-        for i in range(u.shape[0]):
+
+        """for i in range(u.shape[0]):
             if (x[i]<param[0]):
+                u[i] = 1"""
+        for i in range(u.shape[0]):  #        ____
+            if (x[i]>param[0]):      #   ____|
                 u[i] = 1
+
         return u
     
     def init_jump2(self, x, params):  #
@@ -228,12 +255,36 @@ class Functions():
         return u
 
     def exact(self, x, params, tf):
-        tf = np.ones_like(x)*tf
         if self.problem=="Linear_advection":
+            tf = np.ones_like(x)*tf
             x0 = x-tf
             u0 = self.init_func(x0, params)
-        elif self.problem=="Burgers":
+
+        elif self.problem=="Burgers":  #
+            xf = params[0] + tf
             u0 = np.zeros_like(x)
+            x_ = -1
+            _x = x[-1]+1
+            c = 0
+            _i, i_ = 0,0
+            if self.type == "jump1":
+                for i in range(x.shape[0]):
+                    if x[i] >= xf:
+                        u0[i] = 1
+                    elif params[0] < x[i] and x[i] < xf:
+                        if x[i] < _x:
+                            _x = x[i]
+                            _i = i 
+                        if x[i] > x_:
+                            x_ = x[i]
+                            i_ = i
+                    c+=1
+                init = self.init_func(x, params)
+                diff_val = np.abs(init[i_] - init[_i-1])
+                diff_ind = np.abs(i_-_i)
+                incr = diff_val / diff_ind
+                u0[_i:i_+1] = np.arange(init[_i-1],init[i_],step=incr)
+
         elif self.problem=="RIPA":
             pass
 
@@ -248,7 +299,7 @@ class Theta_Scheme:
         t = 0
         u = self.env.funcs.init_sol.copy()
         coef = self.env.mesh.dt*(1-self.env.theta)
-        A = self.env.mats.Iter_Mat(self.env.mesh, self.env.theta, self.env.alpha, adaptive=False)
+        A = self.env.mats.Iter_Mat(self.env.mesh, self.env.theta, self.env.alpha, adaptive=False, flux="UP", boundary=None)#
 
         while (t<self.env.tf):
             t += self.env.mesh.dt
