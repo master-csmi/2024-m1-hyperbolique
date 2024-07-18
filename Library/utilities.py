@@ -34,7 +34,7 @@ class Theta_Managing:
                 else:
                     dthetas[i] = 0
 
-    def theta_choice(self, thetas, i, epsilon=1e-6):
+    def theta_choice(self, thetas, i, epsilon=1e-100):
         if self.method == "MinMax":
             if np.abs(self.solver.w[i]) > epsilon:
                 thetas[i] = min(max(self.solver.theta_min, np.abs(self.solver.v[i]/self.solver.w[i]) ), 
@@ -107,8 +107,7 @@ class Mesh:
         self.a = a
         self.b = b
         self.Nx = Nx
-        if boundary == "constant":  #Neumann at the left
-            self.Nx += 1
+
         if t_type=="Nt":
             self.Nt = t
         elif t_type=="cfl":
@@ -150,12 +149,12 @@ class Matrices():
             raise ValueError("alpha<0 not available yet")
 
     def Dx_PtR(self, mesh, b):
-        if b == "periodical":
+        if b == "periodic":
             ret = sparse.diags([np.ones(mesh.Nx+1),-np.ones(mesh.Nx)],
                             [0,-1], shape=(mesh.Nx+1,mesh.Nx+1), format="lil")
             ret[0,-1] = -1
             
-        elif b == "constant":
+        elif b == "dirichlet":
             dia = np.ones(mesh.Nx+1)
             dia[0] = 0
             ret = sparse.diags([dia,-np.ones(mesh.Nx)],
@@ -165,7 +164,7 @@ class Matrices():
 
 
     def Iter_Mat(self, mesh, theta, alpha, adaptive, flux, boundary):
-        if flux=="UP":
+        if flux=="Upwind":
             if adaptive==False:
                 Id = sparse.identity(mesh.Nx+1, format="lil")
                 Dx = self.Dx.tolil()
@@ -189,7 +188,7 @@ class Matrices():
                 A[i, i-1] = - alpha * theta[i] * mesh.dt / (2*mesh.dx)
                 A[i, i+1] = - alpha * theta[i] * mesh.dt / (2*mesh.dx)
 
-            if boundary=="constant":
+            if boundary=="dirichlet":
                 A[0,0] = 1.
                 A[-1,-1] = 1.
             elif boundary=="periodic":
@@ -210,7 +209,7 @@ class Matrices():
     
 
 class Functions():
-    def __init__(self, mesh, problem, params, tf, init_type):
+    def __init__(self, mesh, problem, params, tf, init_type, exact):
         self.problem = problem
         self.type = init_type
 
@@ -220,39 +219,90 @@ class Functions():
             self.init_func = self.init_jump1
         elif init_type=="jump2":
             self.init_func = self.init_jump2
+        elif init_type=='sine_shock':
+            self.init_func = self.init_sine
+        elif problem == "RIPA":
+            self.init_func = self.init_RIPA
         else:
             raise ValueError("invalid init function type")
 
         self.init_sol = self.init_func(mesh.nodes, params)
-        self.exact_sol = self.exact(mesh.nodes, params, tf)
+        if exact == True:
+            self.exact_sol = self.exact(mesh.nodes, params, tf)
 
     def init_bell(self, x, param, sigma=0.05): #To make a kind of bell curve -> continuous distribution centered in d0=param
         return np.exp(-0.5*((x-param[0])**2)/sigma**2)
 
-    def init_jump1(self, x, param): #To make a piecewise-constant function with a discontinuity in d0=param (1 before, 0 after)
-                                    #not compatible with periodical boundaries, shape: ___
-                                    #                                                     |___
-        u = np.zeros_like(x, dtype=float)
+    def init_jump1(self, x, params): #To make a piecewise-constant function with a discontinuity in d0=param (1 before, 0 after)
+                                    #not compatible with periodical boundaries, shape:      ____  or  ____
+                                    #                                                  ____|              |____
+        if len(params)!=3:
+            raise ValueError("3 values needed to define the initial function")
+        u = np.ones_like(x, dtype=float) * params[1]
 
-        """for i in range(u.shape[0]):
-            if (x[i]<param[0]):
-                u[i] = 1"""
-        for i in range(u.shape[0]):  #        ____
-            if (x[i]>param[0]):      #   ____|
-                u[i] = 1
+        for i in range(u.shape[0]):
+            if (x[i]>=params[0]):      
+                u[i] = params[2]
 
         return u
     
     def init_jump2(self, x, params):  #
                                       #shape:     ___
                                       #       ___|   |___
-        if len(params)!=2:
-            raise ValueError("2 values needed for the coordinates of the perturbation")
-        u = np.zeros_like(x, dtype=float)
+        if len(params)!=5:
+            raise ValueError("5 values needed to define the initial function")
+        u = np.ones_like(x, dtype=float) * params[2]
         for i in range(u.shape[0]):
             if (x[i]<params[1] and x[i]>=params[0]):
-                u[i] = 1
+                u[i] = params[3]
+            elif x[i]>=params[1] :
+                u[i] = params[4]
         return u
+
+    def init_sine(self, x, params=[0.5]):
+        #For params[0] = 0.5 and x in [0,2]:
+        #interval of sol: [-0.5,1.5], alpha_LF = 1.5, time of shock formation: 1/pi~=0.318
+        return params[0] + np.sin(np.pi * x)
+
+    def init_RIPA(self, x, params=[]):  #params=[[5,0,3],[1,0,5]]
+        #computational domain: [-1,1], Dirichlet BC
+        if self.type == "smooth":
+            pass
+        
+        elif self.type == "flat":
+            ret = np.empty(shape=(3,x.shape[0]))
+            ret[1] = np.zeros_like(x)
+            for i in range(x.shape[0]):
+                if x[i] < 0:
+                    ret[0][i] = 5
+                    ret[2][i] = 3
+                else:
+                    ret[0][i] = 1
+                    ret[2][i] = 5
+                
+        elif self.type == "nonflat":
+            z = np.empty_like(x)
+            for i in range(x.shape[0]):
+                if x[i] >= -0.4 and x[i] <= -0.2:
+                    z[i] = 2 * (np.cos(10*np.pi*(x[i] + 0.3)) +1)
+                elif x[i] >= 0.2 and x[i] <= 0.4::
+                    z[i] = .5 * (np.cos(10*np.pi*(x[i] - 0.3)) +1)
+                else:
+                    z[i] = 0
+            ret = np.empty(shape=(3,x.shape[0]))
+            ret[1] = np.zeros_like(x)
+            for i in range(x.shape[0]):
+                if x[i] < 0:
+                    ret[0][i] = 5 - z[i]
+                    ret[2][i] = 3
+                else:
+                    ret[0][i] = 1 - z[i]
+                    ret[2][i] = 5
+
+        else:
+            raise ValueError("Wrong init function type for RIPA")
+        
+        return ret
 
     def exact(self, x, params, tf):
         if self.problem=="Linear_advection":
@@ -260,30 +310,38 @@ class Functions():
             x0 = x-tf
             u0 = self.init_func(x0, params)
 
-        elif self.problem=="Burgers":  #
-            xf = params[0] + tf
-            u0 = np.zeros_like(x)
-            x_ = -1
-            _x = x[-1]+1
-            c = 0
-            _i, i_ = 0,0
+        elif self.problem=="Burgers":
             if self.type == "jump1":
-                for i in range(x.shape[0]):
-                    if x[i] >= xf:
-                        u0[i] = 1
-                    elif params[0] < x[i] and x[i] < xf:
-                        if x[i] < _x:
-                            _x = x[i]
-                            _i = i 
-                        if x[i] > x_:
-                            x_ = x[i]
-                            i_ = i
-                    c+=1
-                init = self.init_func(x, params)
-                diff_val = np.abs(init[i_] - init[_i-1])
-                diff_ind = np.abs(i_-_i)
-                incr = diff_val / diff_ind
-                u0[_i:i_+1] = np.arange(init[_i-1],init[i_],step=incr)
+                xf = params[0] + np.max(self.init_sol) * tf
+                j1, j2 = 0, 0
+                while x[j1] < params[0]:
+                    j1 += 1
+                    j2 += 1
+                while x[j2] < xf:
+                    j2 += 1
+                u0 = np.ones_like(x) * params[1]
+                u0[j1:j2] = ((params[2]-params[1])/(x[j2]-x[j1])) * x[j1:j2] - ((params[2]-params[1])/(x[j2]-x[j1]))*x[j1] + params[1]
+                u0[j2:] = params[2]
+
+            elif self.type == "jump2":
+                xf1 = params[0] + np.max(self.init_sol) * tf
+                xf2 = params[1] + np.max(self.init_sol) * tf /2
+                #if xf1 >= xf2 we have rarefaction -> TO DO : split the cases
+                #following is the case xf1 < xf2:
+                j = 0
+                while x[j] < params[0]:
+                    j+=1
+                j1 = j
+                while x[j] < xf1:
+                    j += 1
+                j2 = j
+                while x[j] < xf2:
+                    j += 1
+                j3 = j
+                u0 = np.ones_like(x) * params[2]
+                u0[j1:j2] = ((params[3]-params[2])/(x[j2]-x[j1])) * x[j1:j2] - ((params[3]-params[2])/(x[j2]-x[j1]))*x[j1] + params[2]
+                u0[j2:j3] = params[3]
+                u0[j3:] = params[4]
 
         elif self.problem=="RIPA":
             pass
@@ -299,7 +357,7 @@ class Theta_Scheme:
         t = 0
         u = self.env.funcs.init_sol.copy()
         coef = self.env.mesh.dt*(1-self.env.theta)
-        A = self.env.mats.Iter_Mat(self.env.mesh, self.env.theta, self.env.alpha, adaptive=False, flux="UP", boundary=None)#
+        A = self.env.mats.Iter_Mat(self.env.mesh, self.env.theta, self.env.alpha, adaptive=False, flux="Upwind", boundary=None)#
 
         while (t<self.env.tf):
             t += self.env.mesh.dt
