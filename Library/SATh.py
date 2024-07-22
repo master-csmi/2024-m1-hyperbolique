@@ -44,7 +44,6 @@ class Problem():
             "Theta_max": 1,   #the maximum value we want theta to be able to take (when using 'MinMax')
             
             #Methods for Thetas computation and related parameters
-            "Theta_solving_method": "Newton",
             "Newton_convergence_epsilon": 6e-6,
             "Newton_maxiter":100,
             "Theta_choice_method": "MinMax", #/"Smoothing" /->"MinMax" is the discontinuous function
@@ -52,9 +51,6 @@ class Problem():
                 "kappa": 10,
                 #Parameter for MinMax method threshold:
                 "Theta_choice_epsilon": 1e-100,#1e-6,
-            "Newton_solver": "LO_NewtonKrylov", #"Jacobian", #/"LO_NewtonKrylov"-> for Matrix-free Newton Krylov Method (using linear operators)
-                #In the case of SATh-UP (with "Jacobian" solving method):
-                "Jacobian_method": "Classic", #/"Smoothing"
 
         #Others
         "Exact": True, #True if you want to compute the exact solution. Switch to False when trying to launch a computation with special initial function or parameters
@@ -124,7 +120,8 @@ class Problem():
         if self.params_dict["Problem"] == "Burgers":
             return max(np.abs(df_u))
         elif self.params_dict["Problem"] == "RIPA":
-            [h, u, g, T, z] = self.coefs#
+            [h,u,T] = self.funcs.init_sol
+            g = 1
             return max(max(np.abs(np.sqrt(g*T*h)-u)), max(np.abs(np.sqrt(g*T*h)+u)))
 
     def f(self, u):
@@ -133,7 +130,8 @@ class Problem():
         elif self.params_dict["Problem"] == "Burgers":
             return u**2 / 2
         elif self.params_dict["Problem"] == "RIPA":
-            [h, u, g, T, z] = self.coefs#
+            [h,u,T] = self.funcs.init_sol
+            g = 1
             return np.array([h*u, h*u**2 + g*T*h**2/2, h*T*u])
 
     def df(self, u):
@@ -150,11 +148,12 @@ class Problem():
 class SATh_Solver:
     def __init__(self, env):
         self.env = env
+        self.dim = env.dim
+
         self.theta_st = env.params_dict["Theta_st"]
         self.theta_min = env.params_dict["Theta_min"]
-        self.thetas = np.ones(env.mesh.Nx+1) * self.theta_st
+        self.thetas = np.ones(shape=(self.dim,env.mesh.Nx+1)) * self.theta_st
         self.dthetas = np.zeros_like(self.thetas)
-        self.theta_computation = env.params_dict["Theta_solving_method"]#
 
         self.u_down = self.env.funcs.init_sol.copy()
         self.u_up, self.u_til = np.empty_like(self.u_down), np.empty_like(self.u_down)
@@ -176,42 +175,74 @@ class SATh_Solver:
 
         self.Th = Theta_Managing(self)  #The functions associated to the choices of thetas are stored away
 
-        #
-        if self.env.params_dict["Flux"]=="LF" and self.env.params_dict["Jacobian_method"]=="Smoothing":
-            raise ValueError("Jacobian method 'Smoothing' is not compatible with Lax-Friedrichs")
-        #
-
 
     def timer(self, action=None):
         if action == "set":
-            print(int(self.env.tf//self.env.mesh.dt) * "_")
+            print(int(self.env.tf//self.env.mesh.dt)*int(self.alpha) * "_")
         else:
             print("-",end="")
 
 
-    def doubletab(self, x1, x2):
+    def doubletab(self, xs):
+        if self.dim == 1:
+            [x1,x2]=xs
             if x1.shape != x2.shape:
                 raise TabError("x1 & x2 must have the same shape")
             new = np.empty(shape=(x1.shape[0]*2))
             new[:-1:2], new[1::2] = x1, x2
-            return new
+
+        else:
+            if not isinstance(xs, np.ndarray):
+                xs = np.array(xs)
+            d = self.dim
+            if 2*d!=xs.shape[0]:
+                raise TabError("Wrong number of arrays")
+            for i in range(xs.shape[0]-1):
+                if xs[i].shape != xs[i+1].shape:
+                    raise TabError("x1 & x2 must have the same shape")
+            new = np.empty(shape=(xs[0].shape[0]*2*d))
+
+            j = 0
+            for i in range(xs[0].shape[0]):
+                for k in range(self.dim*2):
+                    new[j+k] = xs[k][i]
+                j += self.dim*2
+
+        return new
+
     
 
-    def F(self, X):   #For LF using "LO_NewtonKrylov" method
+    def F(self, X):
         f = self.f
+        d = self.dim
 
         w_x = X[:-1:2]
-        w = self.doubletab(w_x, w_x)
-        _w = self.doubletab(np.roll(w_x,1),np.roll(w_x,1))
-        w_ = self.doubletab(np.roll(w_x,-1),np.roll(w_x,-1))
-        u = self.doubletab(self.u_down,self.u_down)
-        _u = self.doubletab(np.roll(self.u_down,1),np.roll(self.u_down,1))
-        u_ = self.doubletab(np.roll(self.u_down,-1),np.roll(self.u_down,-1))
-        Thetas = self.doubletab(self.thetas, self.thetas**2)
-        _Thetas = self.doubletab(np.roll(self.thetas,1),np.roll(self.thetas**2,1))
-        Thetas_ = self.doubletab(np.roll(self.thetas,-1),np.roll(self.thetas**2,-1))
+        w = self.doubletab([w_x]*2)
+        _w = self.doubletab([np.roll(w_x,1)]*2)
+        w_ = self.doubletab([np.roll(w_x,-1)]*2)
+
+
+        Thetas = self.doubletab([self.thetas, self.thetas**2]*d)
+        _Thetas = self.doubletab([np.roll(self.thetas,1),np.roll(self.thetas**2,1)]*d)
+        Thetas_ = self.doubletab([np.roll(self.thetas,-1),np.roll(self.thetas**2,-1)]*d)
+
+        if d==1:
+            u = self.doubletab([self.u_down,self.u_down])
+            _u = self.doubletab([np.roll(self.u_down,1),np.roll(self.u_down,1)])
+            u_ = self.doubletab([np.roll(self.u_down,-1),np.roll(self.u_down,-1)])
+        else:
+            u = np.empty(shape=(2 * d * (self.env.mesh.Nx+1)))
+            _u = np.empty_like(u)
+            u_ = np.empty_like(u)
+            j=0
+            for i in range(d):
+                u[j:-(d-j):d], u[j:-(d-j):d] = self.u_down[i], self.u_down[i]
+                u[j+1:-(d-j+1):d], u[j+1:-(d-j+1):d] = self.u_down[i], self.u_down[i]
+                j+=2
+
         lams = np.ones(shape=self.thetas.shape) * self.lam
-        lam_2 = self.doubletab(lams,lams/2)
+        lam_2 = self.doubletab([lams,lams/2]*self.dim)
+
 
         if self.env.params_dict["Flux"] == "LF":
             if self.env.params_dict["Boundary"]=="periodic":
@@ -220,15 +251,15 @@ class SATh_Solver:
                     -lam_2 * (f(u_)-f(_u)) + lam_2*self.alpha*(u_-2*u+_u))
             elif self.env.params_dict["Boundary"]=="dirichlet":
                 ret = np.zeros_like(u)
-                ret[2:-2] = X[2:-2] + lam_2[2:-2] * (Thetas_[2:-2] * (f(w_[2:-2]+u_[2:-2]) - f(u_[2:-2]) - self.alpha*w_[2:-2]) 
-                                                     + 2*self.alpha*Thetas[2:-2] * w[2:-2] - _Thetas[2:-2] * (
-                    f(_w[2:-2]+_u[2:-2]) - f(_u[2:-2]) + self.alpha*_w[2:-2])) - (
-                    -lam_2[2:-2] * (f(u_[2:-2])-f(_u[2:-2])) + lam_2[2:-2]*self.alpha*(u_[2:-2]-2*u[2:-2]+_u[2:-2]))
+                ret[2*d:-2*d] = X[2*d:-2*d] + lam_2[2*d:-2*d] * (Thetas_[2*d:-2*d] * (f(w_[2*d:-2*d]+u_[2*d:-2*d]) - f(u_[2*d:-2*d]) - self.alpha*w_[2*d:-2*d]) 
+                                                     + 2*self.alpha*Thetas[2*d:-2*d] * w[2*d:-2*d] - _Thetas[2*d:-2*d] * (
+                    f(_w[2*d:-2*d]+_u[2*d:-2*d]) - f(_u[2*d:-2*d]) + self.alpha*_w[2*d:-2*d])) - (
+                    -lam_2[2*d:-2*d] * (f(u_[2*d:-2*d])-f(_u[2*d:-2*d])) + lam_2[2*d:-2*d]*self.alpha*(u_[2*d:-2*d]-2*u[2*d:-2*d]+_u[2*d:-2*d]))
 
         elif self.env.params_dict["Flux"] == "Upwind":
             ret = np.zeros_like(u)
-            ret[2:] = X[2:] + lam_2[2:] * Thetas[2:] * (f(w[2:] + u[2:]) - f(u[2:])) - (
-                        -lam_2[2:] * (f(u[2:]) - _Thetas[2:] * (f(_w[2:] + _u[2:])-f(_u[2:])) - f(_u[2:])))
+            ret[2*d:] = X[2*d:] + lam_2[2*d:] * Thetas[2*d:] * (f(w[2*d:] + u[2*d:]) - f(u[2*d:])) - (
+                        -lam_2[2*d:] * (f(u[2*d:]) - _Thetas[2*d:] * (f(_w[2*d:] + _u[2*d:])-f(_u[2*d:])) - f(_u[2*d:])))
 
 
         if self.env.params_dict["Scheme"]=="SATh":  #the update must be included in the function
@@ -247,64 +278,31 @@ class SATh_Solver:
         self.w = np.zeros_like(w_)
         iter=0
 
-        if self.env.params_dict["Newton_solver"] == "LO_NewtonKrylov" and self.env.params_dict["Flux"]!="Upwind":
-            self.storew = self.w.copy()
-            self.storev = self.v.copy()
-            #X = self.doubletab(self.w,self.v)
-            O = np.zeros_like(self.v)
-            X = self.doubletab(O,self.v)
-            self.thetas = np.ones_like(self.thetas)
-            X = newton_krylov(self.F, X,
-                              iter=maxiter,
-                              verbose=False,
-                              f_tol=epsilon)
-            """r = root(self.F, X, tol=epsilon)
-            X = r.x"""
-            #last update of w and v
-            self.w = X[:-1:2]
-            self.v = X[1::2]
+        self.storew = self.w.copy()
+        self.storev = self.v.copy()
+        #X = self.doubletab(self.w,self.v)
+        O = np.zeros_like(self.v)
+        X = self.doubletab([O,self.v]*self.dim)
+        self.thetas = np.ones_like(self.thetas)*self.theta_st#
+        X = newton_krylov(self.F, X,
+                            iter=maxiter,
+                            verbose=False,
+                            f_tol=epsilon)
+        """r = root(self.F, X, tol=epsilon)
+        X = r.x"""
+        #last update of w and v
+        self.w = X[:-1:2]
+        self.v = X[1::2]
 
-            self.F_ = self.F(X)
+        self.F_ = self.F(X)
 
-            for i in range(self.w.size):
-                self.Th.theta_choice(self.thetas, i,
-                                    epsilon=self.env.params_dict["Theta_choice_epsilon"])
-            self.Th.dthetas_update(self.dthetas)
-
-
-        elif self.env.params_dict["Flux"]=="Upwind":
-
-            while np.linalg.norm(self.w - w_) >= epsilon and iter<maxiter:
-
-                for i in range(1,self.env.mesh.Nx +1):
-                    w_[i] = self.w[i]
-
-                    self.Th.theta_choice(self.thetas, i,
-                                            epsilon=self.env.params_dict["Theta_choice_epsilon"])
-                    s = np.linalg.solve(self.compute_J(i, 
-                                    epsilon=self.env.params_dict["Theta_choice_epsilon"]),
-                                    -self.F_mat(i))
-
-                    self.w[i] += s[0]
-                    self.v[i] += s[1]
-
-                #update the thetas:
-                for i in range(self.w.size):
-                    self.Th.theta_choice(self.thetas, i,
-                                        epsilon=self.env.params_dict["Theta_choice_epsilon"])
-                self.Th.dthetas_update(self.dthetas)
-
-                iter += 1
-                if iter == maxiter:
-                    print("Newton stopped at maxiter")
+        for i in range(self.w.size):
+            self.Th.theta_choice(self.thetas, i,
+                                epsilon=self.env.params_dict["Theta_choice_epsilon"])
+        self.Th.dthetas_update(self.dthetas)
         
-            
-            if self.env.params_dict["print_Newton_iter"]==True:
-                print(iter, end=" ")
-        #"""
-
-        else:
-            raise ValueError("Error in the values of 'Flux' and/or 'Newton_solver'.")
+        if self.env.params_dict["print_Newton_iter"]==True:
+            print(iter, end=" ")
     
 
     def ret_F(self):
@@ -330,39 +328,47 @@ class SATh_Solver:
         while (t<self.env.tf):
 
             if self.env.params_dict["Problem"] != "Linear_advection":
-                self.alpha = self.env.compute_alpha(self.df(self.u_up))
-                dt = self.env.mesh.dt / self.alpha
-                if self.env.params_dict["Flux"]=="Upwind":
-                    self.lam = dt/self.env.mesh.dx
-                elif self.env.params_dict["Flux"]=="LF":
-                    self.lam = .5 * dt/self.env.mesh.dx
-            
-            
-            if self.env.params_dict["Flux"]=="Upwind":
-                A = self.env.mats.Iter_Mat(self.env.mesh,
-                                       self.thetas,
-                                       self.alpha,
-                                       adaptive=True,
-                                       flux = self.env.params_dict["Flux"],
-                                       boundary=self.env.params_dict["Boundary"])
-                coefs = self.env.mesh.dt*(np.eye(self.env.mesh.Nx+1)-np.diag(self.thetas))
-                b = self.u_down - self.env.alpha * coefs@(self.env.mats.Dx @ self.u_down)
-                b[0] = self.u_down[0]
-                self.u_up, _ = gmres(A, b)
-
-            elif self.env.params_dict["Flux"]=="LF":
+                    self.alpha = self.env.compute_alpha(self.df(self.u_up))
+                    dt = self.env.mesh.dt / self.alpha
+                    if self.env.params_dict["Flux"]=="Upwind":
+                        self.lam = dt/self.env.mesh.dx
+                    elif self.env.params_dict["Flux"]=="LF":
+                        self.lam = .5 * dt/self.env.mesh.dx
                 
-                #X = self.doubletab(self.w,self.v)
-                O = np.zeros_like(self.v)
-                X = self.doubletab(O,self.v)
-                self.w = newton_krylov(self.F, X,
-                                          #iter=self.env.params_dict["Scheme_maxiter"],
-                                          f_tol=tol,
-                                          verbose=False)[:-1:2]
+
+            if self.env.params_dict["Scheme"]=="Theta":
+
+                if self.env.params_dict["Flux"]=="Upwind":
+                    A = self.env.mats.Iter_Mat(self.env.mesh,
+                                        self.thetas,
+                                        self.alpha,
+                                        adaptive=True,
+                                        flux = self.env.params_dict["Flux"],
+                                        boundary=self.env.params_dict["Boundary"])
+                    coefs = self.env.mesh.dt*(np.eye(self.env.mesh.Nx+1)-np.diag(self.thetas))
+                    b = self.u_down - self.env.alpha * coefs@(self.env.mats.Dx @ self.u_down)
+                    b[0] = self.u_down[0]
+                    self.u_up, _ = gmres(A, b)
+                    self.w = self.u_up - self.u_down
+
+                elif self.env.params_dict["Flux"]=="LF":
+                    
+                    #X = self.doubletab(self.w,self.v)
+                    O = np.zeros_like(self.v)
+                    X = self.doubletab([O,self.v]*self.dim)
+                    self.w = newton_krylov(self.F, X,
+                                            #iter=self.env.params_dict["Scheme_maxiter"],
+                                            f_tol=tol,
+                                            verbose=False)[:-1:2]
+                    self.u_up = self.u_down + self.w
+
+
+            else:
+                self.Newton(epsilon=self.env.params_dict["Newton_convergence_epsilon"],
+                            maxiter=self.env.params_dict["Newton_maxiter"])
                 self.u_up = self.u_down + self.w
+                
 
-
-            self.w = self.u_up - self.u_down
             self.u_down = self.u_up.copy()
             #print(self.env.params_dict["Scheme"], np.linalg.norm(self.u_down))
             self.u_til = self.v + self.u_up   #update u_til
@@ -374,10 +380,6 @@ class SATh_Solver:
             if self.env.params_dict["Animation"]==True:
                 self.thetas_save.append(self.thetas.copy())
                 self.numsol_save.append(self.u_up.copy())
-
-            if t!=0 and self.env.params_dict["Scheme"]=="SATh":
-                self.Newton(epsilon=self.env.params_dict["Newton_convergence_epsilon"],
-                            maxiter=self.env.params_dict["Newton_maxiter"])
 
         if self.env.params_dict["Animation"]==True:
             self.thetas_save = np.array(self.thetas_save)

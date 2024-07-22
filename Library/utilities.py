@@ -36,12 +36,21 @@ class Theta_Managing:
 
     def theta_choice(self, thetas, i, epsilon=1e-100):
         if self.method == "MinMax":
-            if np.abs(self.solver.w[i]) > epsilon:
-                thetas[i] = min(max(self.solver.theta_min, np.abs(self.solver.v[i]/self.solver.w[i]) ), 
-                                self.solver.env.params_dict["Theta_max"])
+            if self.solver.dim ==1:
+                if np.abs(self.solver.w[i]) > epsilon:
+                    thetas[i] = min(max(self.solver.theta_min, np.abs(self.solver.v[i]/self.solver.w[i]) ), 
+                                    self.solver.env.params_dict["Theta_max"])
+                else:
+                    thetas[i] = self.solver.theta_st
             else:
-                thetas[i] = self.solver.theta_st
-        
+                d = self.solver.dim
+                for j in range(d):
+                    if np.abs(self.solver.w[i]) > epsilon:
+                        thetas[j][i] = min(max(self.solver.theta_min, np.abs(self.solver.v[j][i]/self.solver.w[j][i]) ), 
+                                        self.solver.env.params_dict["Theta_max"])
+                    else:
+                        thetas[j][i] = self.solver.theta_st
+
         elif self.method == "Smoothing":
             #if self.w[i]==0:  #
             if np.abs(self.solver.w[i])<self.near0_eps:  #
@@ -279,13 +288,13 @@ class Functions():
                 else:
                     ret[0][i] = 1
                     ret[2][i] = 5
-                
+
         elif self.type == "nonflat":
             z = np.empty_like(x)
             for i in range(x.shape[0]):
                 if x[i] >= -0.4 and x[i] <= -0.2:
                     z[i] = 2 * (np.cos(10*np.pi*(x[i] + 0.3)) +1)
-                elif x[i] >= 0.2 and x[i] <= 0.4::
+                elif x[i] >= 0.2 and x[i] <= 0.4:
                     z[i] = .5 * (np.cos(10*np.pi*(x[i] - 0.3)) +1)
                 else:
                     z[i] = 0
@@ -311,7 +320,40 @@ class Functions():
             u0 = self.init_func(x0, params)
 
         elif self.problem=="Burgers":
-            if self.type == "jump1":
+
+            u0 = np.zeros(x.size)
+            U = self.init_func(x, params)
+            for k in range(x.size):
+                    
+                if k == x.size-1:
+                    k_ = 0
+                else:
+                    k_ = k+1
+                
+                UL = U[k]
+                UR = U[k_]
+                                
+                if UL > UR:
+                    # Shock case:
+                    S = 0.5 * (UL + UR)
+                    if S >= 0.:
+                        UO = UL
+                    else:
+                        UO = UR
+                else:
+                    # Rarefaction case
+                    if UL >= 0.:
+                        UO = UL
+                    else:
+                        if UR <= 0.:
+                            UO = UR
+                        else:
+                            UO = 0.
+                
+                u0[k] = 0.5 * UO * UO
+
+            """
+            if self.type == "jump1":    
                 xf = params[0] + np.max(self.init_sol) * tf
                 j1, j2 = 0, 0
                 while x[j1] < params[0]:
@@ -341,7 +383,7 @@ class Functions():
                 u0 = np.ones_like(x) * params[2]
                 u0[j1:j2] = ((params[3]-params[2])/(x[j2]-x[j1])) * x[j1:j2] - ((params[3]-params[2])/(x[j2]-x[j1]))*x[j1] + params[2]
                 u0[j2:j3] = params[3]
-                u0[j3:] = params[4]
+                u0[j3:] = params[4]"""
 
         elif self.problem=="RIPA":
             pass
