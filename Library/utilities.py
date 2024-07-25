@@ -45,7 +45,7 @@ class Theta_Managing:
             else:
                 d = self.solver.dim
                 for j in range(d):
-                    if np.abs(self.solver.w[i]) > epsilon:
+                    if np.abs(self.solver.w[j][i]) > epsilon:
                         thetas[j][i] = min(max(self.solver.theta_min, np.abs(self.solver.v[j][i]/self.solver.w[j][i]) ), 
                                         self.solver.env.params_dict["Theta_max"])
                     else:
@@ -61,6 +61,11 @@ class Theta_Managing:
         else :
             raise ValueError("Wrong Theta choice method type")
         
+
+def doubletab(xs):
+    stacked = np.stack(xs, axis=1)
+    return stacked.ravel()
+
 
 def LF_Newton_Matrices(self, block, i):
     #This function is used to build the Jacobian matrix for the "Jacobian" Newton method
@@ -142,7 +147,7 @@ class Mesh:
         x = []
         inter = []
         for j in range(self.Nx+1):
-            x.append((j)*self.dx -self.a)
+            x.append((j)*self.dx +self.a)
             if j != self.Nx:
                 inter.append(x[j] + self.dx)
         return np.array(x), np.array(inter)
@@ -311,7 +316,7 @@ class Functions():
         else:
             raise ValueError("Wrong init function type for RIPA")
         
-        return ret
+        return np.array([ret[0],ret[0]*ret[1],ret[0]*ret[2]])  #[h,hu,hT]
 
     def exact(self, x, params, tf):
         if self.problem=="Linear_advection":
@@ -386,7 +391,7 @@ class Functions():
                 u0[j3:] = params[4]"""
 
         elif self.problem=="RIPA":
-            pass
+            u0 = np.empty_like(x)
 
         return u0
 

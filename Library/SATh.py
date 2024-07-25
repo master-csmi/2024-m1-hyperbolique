@@ -35,7 +35,7 @@ class Problem():
         #Type of Scheme
         "Scheme": "SATh", #/"Theta"
         "Flux": "LF", #/"Upwind"
-        "Scheme_tol": 6e-6,
+        "Scheme_tol": 6e-6, #6e-6 is default value for the newton_krylov function
         "Scheme_maxiter": 30,
 
             #Theta-parameters
@@ -120,9 +120,10 @@ class Problem():
         if self.params_dict["Problem"] == "Burgers":
             return max(np.abs(df_u))
         elif self.params_dict["Problem"] == "RIPA":
-            [h,u,T] = self.funcs.init_sol
+            [h,hu,hT] = self.funcs.init_sol
             g = 1
-            return max(max(np.abs(np.sqrt(g*T*h)-u)), max(np.abs(np.sqrt(g*T*h)+u)))
+            u = hu/h
+            return max(max(np.abs(np.sqrt(g*hT)-u)), max(np.abs(np.sqrt(g*hT)+u)))
 
     def f(self, u):
         if self.params_dict["Problem"] == "Linear_advection":
@@ -130,9 +131,23 @@ class Problem():
         elif self.params_dict["Problem"] == "Burgers":
             return u**2 / 2
         elif self.params_dict["Problem"] == "RIPA":
-            [h,u,T] = self.funcs.init_sol
             g = 1
-            return np.array([h*u, h*u**2 + g*T*h**2/2, h*T*u])
+            """[h,hu,hT] = self.funcs.init_sol
+            u = hu/h
+            T = hT/h
+            return np.array([h*u, h*u**2 + g*T*h**2/2, h*T*u])"""
+
+            ret = np.empty_like(u)
+            h = u[::6]
+            hu = u[2::6]
+            hT = u[4::6]
+            #print(h.shape, h)
+            u = hu/h
+
+            ret[::6], ret[1::6] = hu, hu
+            ret[2::6], ret[3::6] = h*u**2 + g*hT*h/2, h*u**2 + g*hT*h/2
+            ret[4::6], ret[5::6] = hT*u, hT*u
+            return ret
 
     def df(self, u):
         if self.params_dict["Problem"] == "Linear_advection":
@@ -181,35 +196,6 @@ class SATh_Solver:
             print(int(self.env.tf//self.env.mesh.dt)*int(self.alpha) * "_")
         else:
             print("-",end="")
-
-
-    def doubletab(self, xs):
-        if self.dim == 1:
-            [x1,x2]=xs
-            if x1.shape != x2.shape:
-                raise TabError("x1 & x2 must have the same shape")
-            new = np.empty(shape=(x1.shape[0]*2))
-            new[:-1:2], new[1::2] = x1, x2
-
-        else:
-            if not isinstance(xs, np.ndarray):
-                xs = np.array(xs)
-            d = self.dim
-            if 2*d!=xs.shape[0]:
-                raise TabError("Wrong number of arrays")
-            for i in range(xs.shape[0]-1):
-                if xs[i].shape != xs[i+1].shape:
-                    raise TabError("x1 & x2 must have the same shape")
-            new = np.empty(shape=(xs[0].shape[0]*2*d))
-
-            j = 0
-            for i in range(xs[0].shape[0]):
-                for k in range(self.dim*2):
-                    new[j+k] = xs[k][i]
-                j += self.dim*2
-
-        return new
-
     
 
     def F(self, X):
@@ -217,32 +203,46 @@ class SATh_Solver:
         d = self.dim
 
         w_x = X[:-1:2]
-        w = self.doubletab([w_x]*2)
-        _w = self.doubletab([np.roll(w_x,1)]*2)
-        w_ = self.doubletab([np.roll(w_x,-1)]*2)
+        w = doubletab([w_x]*2)
+        _w = doubletab([np.roll(w_x,1)]*2)
+        w_ = doubletab([np.roll(w_x,-1)]*2)
 
-
-        Thetas = self.doubletab([self.thetas, self.thetas**2]*d)
-        _Thetas = self.doubletab([np.roll(self.thetas,1),np.roll(self.thetas**2,1)]*d)
-        Thetas_ = self.doubletab([np.roll(self.thetas,-1),np.roll(self.thetas**2,-1)]*d)
+        t, _t, t_ = [],[],[]
+        for i in range(d):
+            t.append(self.thetas[i])
+            t.append(self.thetas[i]**2)
+            _t.append(np.roll(self.thetas[i],1))
+            _t.append(np.roll(self.thetas[i]**2,1))
+            t_.append(np.roll(self.thetas[i],-1))
+            t_.append(np.roll(self.thetas[i]**2,-1))
+        Thetas = doubletab(t)
+        _Thetas = doubletab(_t)
+        Thetas_ = doubletab(t_)
 
         if d==1:
-            u = self.doubletab([self.u_down,self.u_down])
-            _u = self.doubletab([np.roll(self.u_down,1),np.roll(self.u_down,1)])
-            u_ = self.doubletab([np.roll(self.u_down,-1),np.roll(self.u_down,-1)])
+            u = doubletab([self.u_down,self.u_down])
+            _u = doubletab([np.roll(self.u_down,1),np.roll(self.u_down,1)])
+            u_ = doubletab([np.roll(self.u_down,-1),np.roll(self.u_down,-1)])
         else:
             u = np.empty(shape=(2 * d * (self.env.mesh.Nx+1)))
             _u = np.empty_like(u)
             u_ = np.empty_like(u)
             j=0
-            for i in range(d):
-                u[j:-(d-j):d], u[j:-(d-j):d] = self.u_down[i], self.u_down[i]
-                u[j+1:-(d-j+1):d], u[j+1:-(d-j+1):d] = self.u_down[i], self.u_down[i]
+            for i in range(d-1):
+                u[j:-2*d+j+1:2*d], u[j+1:-2*d+j+2:2*d] = self.u_down[i], self.u_down[i]
+                _u[j:-2*d+j+1:2*d], _u[j:-2*d+j+1:2*d] = np.roll(self.u_down[i],1),np.roll(self.u_down[i],1)
+                u_[j:-2*d+j+1:2*d], u_[j:-2*d+j+1:2*d] = np.roll(self.u_down[i],-1),np.roll(self.u_down[i],-1)
                 j+=2
+            i+=1
+            u[j:-1:2*d], u[j+1::2*d] = self.u_down[i], self.u_down[i]
+            _u[j:-2*d+j+1:2*d], _u[j:-2*d+j+1:2*d] = np.roll(self.u_down[i],1),np.roll(self.u_down[i],1)
+            u_[j:-2*d+j+1:2*d], u_[j:-2*d+j+1:2*d] = np.roll(self.u_down[i],-1),np.roll(self.u_down[i],-1)
 
-        lams = np.ones(shape=self.thetas.shape) * self.lam
-        lam_2 = self.doubletab([lams,lams/2]*self.dim)
-
+        lams = np.ones(self.env.mesh.Nx+1) * self.lam
+        lam_2 = doubletab([lams,lams/2]*self.dim)
+    
+        #print(self.u_down[0].shape, self.u_down[0])
+        #print(w_[2*d:-2*d]+u_[2*d:-2*d])
 
         if self.env.params_dict["Flux"] == "LF":
             if self.env.params_dict["Boundary"]=="periodic":
@@ -251,7 +251,7 @@ class SATh_Solver:
                     -lam_2 * (f(u_)-f(_u)) + lam_2*self.alpha*(u_-2*u+_u))
             elif self.env.params_dict["Boundary"]=="dirichlet":
                 ret = np.zeros_like(u)
-                ret[2*d:-2*d] = X[2*d:-2*d] + lam_2[2*d:-2*d] * (Thetas_[2*d:-2*d] * (f(w_[2*d:-2*d]+u_[2*d:-2*d]) - f(u_[2*d:-2*d]) - self.alpha*w_[2*d:-2*d]) 
+                ret[2*d:-2*d] = X[2*d:-2*d] + lam_2[2*d:-2*d] * (Thetas_[2*d:-2*d] * (f(w_[2*d:-2*d]+u_[2*d:-2*d]) - f(u_[2*d:-2*d]) - self.alpha*w_[2*d:-2*d])
                                                      + 2*self.alpha*Thetas[2*d:-2*d] * w[2*d:-2*d] - _Thetas[2*d:-2*d] * (
                     f(_w[2*d:-2*d]+_u[2*d:-2*d]) - f(_u[2*d:-2*d]) + self.alpha*_w[2*d:-2*d])) - (
                     -lam_2[2*d:-2*d] * (f(u_[2*d:-2*d])-f(_u[2*d:-2*d])) + lam_2[2*d:-2*d]*self.alpha*(u_[2*d:-2*d]-2*u[2*d:-2*d]+_u[2*d:-2*d]))
@@ -263,7 +263,7 @@ class SATh_Solver:
 
 
         if self.env.params_dict["Scheme"]=="SATh":  #the update must be included in the function
-            for i in range(self.thetas.shape[0]):
+            for i in range(self.env.mesh.Nx+1):
                 self.Th.theta_choice(self.thetas, i,
                                     epsilon=self.env.params_dict["Theta_choice_epsilon"])
 
@@ -280,9 +280,13 @@ class SATh_Solver:
 
         self.storew = self.w.copy()
         self.storev = self.v.copy()
-        #X = self.doubletab(self.w,self.v)
-        O = np.zeros_like(self.v)
-        X = self.doubletab([O,self.v]*self.dim)
+        #X = doubletab(self.w,self.v)
+        O = np.zeros(self.env.mesh.Nx+1)
+        x = []
+        for i in range(self.dim):
+            x.append(O)
+            x.append(self.v[i])
+        X = doubletab(x)
         self.thetas = np.ones_like(self.thetas)*self.theta_st#
         X = newton_krylov(self.F, X,
                             iter=maxiter,
@@ -291,18 +295,29 @@ class SATh_Solver:
         """r = root(self.F, X, tol=epsilon)
         X = r.x"""
         #last update of w and v
-        self.w = X[:-1:2]
-        self.v = X[1::2]
+        if self.dim==1:
+            self.w = X[:-1:2]
+            self.v = X[1::2]
+        else:
+            ws = X[:-1:2]
+            vs = X[1::2]
+            for i in range(self.dim):
+                self.w[i] = ws[i::self.dim]
+                print(self.w[i])
+                self.v[i] = vs[i::self.dim]
+        
+        """print(self.w.shape, self.w)
+        print(self.u_down.shape, self.u_down)"""
 
         self.F_ = self.F(X)
 
-        for i in range(self.w.size):
+        for i in range(self.env.mesh.Nx+1):
             self.Th.theta_choice(self.thetas, i,
                                 epsilon=self.env.params_dict["Theta_choice_epsilon"])
-        self.Th.dthetas_update(self.dthetas)
+        #self.Th.dthetas_update(self.dthetas)
         
         if self.env.params_dict["print_Newton_iter"]==True:
-            print(iter, end=" ")
+            print(iter, end="")
     
 
     def ret_F(self):
@@ -312,7 +327,7 @@ class SATh_Solver:
     def SATh_Scheme(self, tol=6e-6):
 
         t = 0
-        self.thetas = np.ones(self.env.mesh.Nx+1) * self.theta_st
+        self.thetas = np.ones(shape=(self.dim,self.env.mesh.Nx+1)) * self.theta_st
         self.u_down = self.env.funcs.init_sol.copy()
         self.u_up = np.empty_like(self.u_down)
         #self.u_up[0] = self.u_down[0]
@@ -326,6 +341,7 @@ class SATh_Solver:
                 self.numsol_save = []
 
         while (t<self.env.tf):
+            #print(self.u_down[0])
 
             if self.env.params_dict["Problem"] != "Linear_advection":
                     self.alpha = self.env.compute_alpha(self.df(self.u_up))
@@ -353,21 +369,32 @@ class SATh_Solver:
 
                 elif self.env.params_dict["Flux"]=="LF":
                     
-                    #X = self.doubletab(self.w,self.v)
-                    O = np.zeros_like(self.v)
-                    X = self.doubletab([O,self.v]*self.dim)
-                    self.w = newton_krylov(self.F, X,
+                    #X = doubletab(self.w,self.v)
+                    O = np.zeros(self.env.mesh.Nx+1)
+                    x = []
+                    for i in range(self.dim):
+                        x.append(O)
+                        x.append(self.v[i])
+                    X = doubletab(x)
+                    w = newton_krylov(self.F, X,
                                             #iter=self.env.params_dict["Scheme_maxiter"],
                                             f_tol=tol,
                                             verbose=False)[:-1:2]
+                    if self.dim==1:
+                        self.w = w
+                    else:
+                        for i in range(self.dim):
+                            self.w[i] = w[i::self.dim]
+
                     self.u_up = self.u_down + self.w
 
 
             else:
                 self.Newton(epsilon=self.env.params_dict["Newton_convergence_epsilon"],
                             maxiter=self.env.params_dict["Newton_maxiter"])
+                #print("w",self.w)
                 self.u_up = self.u_down + self.w
-                
+
 
             self.u_down = self.u_up.copy()
             #print(self.env.params_dict["Scheme"], np.linalg.norm(self.u_down))
