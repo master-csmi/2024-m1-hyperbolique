@@ -1,44 +1,25 @@
 /doc
 /build
-/__pycache__
+__pycache__
+
+pictures
+Tests
+doc
 
 *.pdf
 *.png
-
-slides
-slides.aux
-slides.fdb_latexmk
-slides.fls
-slides.log
-slides.nav
-slides.out
-slides.snm
-slides.synctex.gz
-slides.toc
-slides.run.xml
-slides.bbl
-slides.bcf
-slides.tex
-slides.blg
-report.aux
-report.fdb_latexmk
-report.fls
-report.log
-report.synctex.gz
-report.toc
-report.bbl
-report.bcf
-report.run.xml
+slides*
+report*
 
 .venv
 
 test.ipynb
 plotting.ipynb
 plots.ipynb
+plots2.ipynb
 new.ipynb
 new.py
 tests.ipynb
+SATh_.py
 
 pyvenv.cfg
-
-__pycache__

@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.sparse as sparse
+import time
 
 
 class Theta_Managing:
@@ -35,21 +36,13 @@ class Theta_Managing:
                     dthetas[i] = 0
 
     def theta_choice(self, thetas, i, epsilon=1e-100):
+
         if self.method == "MinMax":
-            if self.solver.dim ==1:
-                if np.abs(self.solver.w[i]) > epsilon:
-                    thetas[i] = min(max(self.solver.theta_min, np.abs(self.solver.v[i]/self.solver.w[i]) ), 
-                                    self.solver.env.params_dict["Theta_max"])
-                else:
-                    thetas[i] = self.solver.theta_st
+            if np.abs(self.solver.w[i]) > epsilon:
+                thetas[i] = np.min([np.max([self.solver.theta_min, np.abs(self.solver.v[i]/self.solver.w[i])] ), 
+                                self.solver.env.params_dict["Theta_max"]])
             else:
-                d = self.solver.dim
-                for j in range(d):
-                    if np.abs(self.solver.w[j][i]) > epsilon:
-                        thetas[j][i] = min(max(self.solver.theta_min, np.abs(self.solver.v[j][i]/self.solver.w[j][i]) ), 
-                                        self.solver.env.params_dict["Theta_max"])
-                    else:
-                        thetas[j][i] = self.solver.theta_st
+                thetas[i] = self.solver.theta_st
 
         elif self.method == "Smoothing":
             #if self.w[i]==0:  #
@@ -63,8 +56,15 @@ class Theta_Managing:
         
 
 def doubletab(xs):
-    stacked = np.stack(xs, axis=1)
+    for x in xs:
+        stacked = np.stack(xs, axis=1)
     return stacked.ravel()
+
+def L2_norm(u):
+    return np.sqrt(np.sum(u**2))
+
+def inf_norm(u):
+    return np.max(np.abs(u))
 
 
 def LF_Newton_Matrices(self, block, i):
@@ -144,13 +144,13 @@ class Mesh:
         self.dt = dt
 
     def grid_offset(self):
-        x = []
+        x = np.empty(self.Nx+1,dtype=np.float64)
         inter = []
         for j in range(self.Nx+1):
-            x.append((j)*self.dx +self.a)
+            x[j] = (j)*self.dx +self.a
             if j != self.Nx:
                 inter.append(x[j] + self.dx)
-        return np.array(x), np.array(inter)
+        return x, np.array(inter)
 
 
 class Matrices():
@@ -167,7 +167,7 @@ class Matrices():
             ret = sparse.diags([np.ones(mesh.Nx+1),-np.ones(mesh.Nx)],
                             [0,-1], shape=(mesh.Nx+1,mesh.Nx+1), format="lil")
             ret[0,-1] = -1
-            
+
         elif b == "dirichlet":
             dia = np.ones(mesh.Nx+1)
             dia[0] = 0
@@ -194,7 +194,7 @@ class Matrices():
                 A = Id + ((Dx * theta[:,np.newaxis]) * mesh.dt * alpha)
                 A[0,0] = 1
                 return sparse.csr_matrix(A)
-        
+
         if flux=="LF":
             A = np.zeros(shape=(mesh.Nx+1, mesh.Nx+1))
             for i in range(1,mesh.Nx):
@@ -252,7 +252,7 @@ class Functions():
                                     #                                                  ____|              |____
         if len(params)!=3:
             raise ValueError("3 values needed to define the initial function")
-        u = np.ones_like(x, dtype=float) * params[1]
+        u = np.ones_like(x, dtype=np.float64) * params[1]
 
         for i in range(u.shape[0]):
             if (x[i]>=params[0]):      
@@ -265,7 +265,7 @@ class Functions():
                                       #       ___|   |___
         if len(params)!=5:
             raise ValueError("5 values needed to define the initial function")
-        u = np.ones_like(x, dtype=float) * params[2]
+        u = np.ones_like(x, dtype=np.float64) * params[2]
         for i in range(u.shape[0]):
             if (x[i]<params[1] and x[i]>=params[0]):
                 u[i] = params[3]
@@ -276,15 +276,15 @@ class Functions():
     def init_sine(self, x, params=[0.5]):
         #For params[0] = 0.5 and x in [0,2]:
         #interval of sol: [-0.5,1.5], alpha_LF = 1.5, time of shock formation: 1/pi~=0.318
-        return params[0] + np.sin(np.pi * x)
+        return params[0] + np.sin(np.pi * x, dtype=np.float64)
 
     def init_RIPA(self, x, params=[]):  #params=[[5,0,3],[1,0,5]]
         #computational domain: [-1,1], Dirichlet BC
+        ret = np.empty(shape=(3,x.shape[0]), dtype=np.float64)
         if self.type == "smooth":
             pass
         
         elif self.type == "flat":
-            ret = np.empty(shape=(3,x.shape[0]))
             ret[1] = np.zeros_like(x)
             for i in range(x.shape[0]):
                 if x[i] < 0:
@@ -303,7 +303,6 @@ class Functions():
                     z[i] = .5 * (np.cos(10*np.pi*(x[i] - 0.3)) +1)
                 else:
                     z[i] = 0
-            ret = np.empty(shape=(3,x.shape[0]))
             ret[1] = np.zeros_like(x)
             for i in range(x.shape[0]):
                 if x[i] < 0:
@@ -317,6 +316,7 @@ class Functions():
             raise ValueError("Wrong init function type for RIPA")
         
         return np.array([ret[0],ret[0]*ret[1],ret[0]*ret[2]])  #[h,hu,hT]
+        #return np.array([ret[0],ret[1],ret[2]])
 
     def exact(self, x, params, tf):
         if self.problem=="Linear_advection":
@@ -399,6 +399,9 @@ class Functions():
 class Theta_Scheme:
     def __init__(self,env):
         self.env = env
+    
+    def get_tc(self):
+        return self.tc
 
     def solver(self):
         t = 0
@@ -406,9 +409,75 @@ class Theta_Scheme:
         coef = self.env.mesh.dt*(1-self.env.theta)
         A = self.env.mats.Iter_Mat(self.env.mesh, self.env.theta, self.env.alpha, adaptive=False, flux="Upwind", boundary=None)#
 
+        if self.env.params_dict["Timer"]==True:
+            start = time.perf_counter()
+
         while (t<self.env.tf):
             t += self.env.mesh.dt
             b = u - coef*self.env.alpha*(self.env.mats.Dx @ u)
             u, _ = sparse.linalg.gmres(A, b)
+        
+        if self.env.params_dict["Timer"]==True:
+            end = time.perf_counter()
+            self.tc = end-start #
 
         return u
+    
+"""
+def smoothing(u, x0):
+
+    InitCon = 0.0
+    Init = 0.0
+    x0 = 0.5 * SDAta['XDomain']  # u1
+    PrimL = np.zeros(SData['kVar'])
+    PrimR = np.zeros(SData['kVar'])
+
+    # u2
+    PrimL[1] = 0.0
+    PrimR[1] = 0.0
+
+    # u3
+    PrimL[2] = 0.0
+    PrimR[2] = 0.0
+
+    # rho/rho0, rho0=rhoL=8.9e3
+    PrimL[3] = 1.0
+    PrimR[3] = 0.1
+
+    # B1
+    PrimL[4] = 1.0
+    PrimR[4] = 1.0
+
+    # B2
+    PrimL[5] = 0.0
+    PrimR[5] = 0.0
+
+    # B3
+    PrimL[6] = 0.0
+    PrimR[6] = 0.0
+
+    # p
+    PrimL[SData['kVar'] - 1] = 1.0
+    PrimR[SData['kVar'] - 1] = 1.0
+
+    # Scale B field
+    PrimL[4:7] /= np.sqrt(4.0 * np.pi)
+    PrimR[4:7] /= np.sqrt(4.0 * np.pi)
+
+    # Smoothing condition
+    if SData['smoothing']:
+        for kv in range(SData['kVar']):
+            if PrimR[kv] - PrimL[kv] > 0.0:
+                Init[kv] = (PrimR[kv] - PrimL[kv]) / 2.0 * np.arctan(theta * (x - x0)) / (np.pi / 2.0) + \
+                        (PrimR[kv] + PrimL[kv]) / 2.0
+            elif PrimR[kv] - PrimL[kv] < 0.0:
+                Init[kv] = (PrimL[kv] - PrimR[kv]) / 2.0 * np.arctan(-theta * (x - x0)) / (np.pi / 2.0) + \
+                        (PrimR[kv] + PrimL[kv]) / 2.0
+            else:
+                Init[kv] = PrimL[kv]
+    else:
+        if x < x0:
+            Init = PrimL.copy()
+        else:
+            Init = PrimR.copy()
+"""

@@ -51,7 +51,7 @@ def plot_problem(p):
 
     plt.legend()
 
-    save_path = p["Path"] + f"/plot_{p["Problem"]}_{p["Flux"]}_{p["Theta_choice_method"]}_cfl{p['cfl']}_Nx{p['Nx']}_tf{p['tf']}.png"
+    save_path = p['Path'] + f"/plot_{p['Problem']}_{p['Flux']}_{p['Theta_choice_method']}_cfl{p['cfl']}_Nx{p['Nx']}_tf{p['tf']}.png"
     print(save_path)
     os.open(save_path, os.O_CREAT | os.O_TRUNC, 0o666)
     plt.savefig(save_path)
@@ -62,8 +62,10 @@ def main(option):
     if option == "plot":
         print(parameters)
         plot_problem(parameters)
-    else:
+    elif option == "noplot":
         print(parameters)
+    else:
+        print("Error with the optional argument")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run simulation with options.")
