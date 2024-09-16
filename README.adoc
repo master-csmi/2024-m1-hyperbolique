@@ -1,5 +1,10 @@
 # Adaptive Implicit Schemes for Hyperbolic Equations
 
+The main branch contains the code used to write the report. this code is functional but still carries bugs. It cannot compute solutions for the RIPA model.
+The "Prototype" branch contains the version of the code (with vectorized code for more variables in the PDEs, as in RIPA). It is not functional, has a lot of bugs, but gave one promising result for the RIPA model:
+
+image::RIPA1.png[]
+
 To load a simulation, modify the parameters as you wish in the args.json file, and run simulation.py (with the option 'plot' or 'noplot' if you want a saved image or not):
 
 ## args.json: the JSON file to set up your parameters. You can leave it empty, the program has an initial dictionary containing default values. Change only the parameters that interest you:
